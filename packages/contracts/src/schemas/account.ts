@@ -28,7 +28,7 @@ export const CreateAccountInput = AccountSchema.pick({
   icon: true,
   initialBalance: true,
 }).extend({
-  currency: AccountTypeSchema.optional(),
+  currency: z.literal('EUR').optional(),
 });
 
 export type Account = z.infer<typeof AccountSchema>;

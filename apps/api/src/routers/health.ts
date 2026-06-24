@@ -1,6 +1,8 @@
 import { HealthSchema } from '@finances/contracts';
 import { publicProcedure, router } from '../trpc/trpc.js';
 
+const startTime = Date.now();
+
 export const healthRouter = router({
   get: publicProcedure
     .output(HealthSchema)
@@ -8,7 +10,7 @@ export const healthRouter = router({
       return {
         status: 'ok' as const,
         version: '0.1.0',
-        uptime: process.uptime(),
+        uptime: Math.floor((Date.now() - startTime) / 1000),
         timestamp: new Date().toISOString(),
       };
     }),

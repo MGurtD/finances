@@ -16,6 +16,9 @@ importers:
       '@finances/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@finances/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@trpc/server':
         specifier: ^11.0.0
         version: 11.18.0(typescript@5.9.3)
@@ -90,6 +93,15 @@ importers:
       '@vue/tsconfig':
         specifier: ^0.5.0
         version: 0.5.1
+      autoprefixer:
+        specifier: ^10.4.0
+        version: 10.5.1(postcss@8.5.15)
+      postcss:
+        specifier: ^8.4.0
+        version: 8.5.15
+      tailwindcss:
+        specifier: ^3.4.0
+        version: 3.4.19(tsx@4.22.4)
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
@@ -111,6 +123,9 @@ importers:
       superjson:
         specifier: ^2.0.0
         version: 2.2.6
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -144,6 +159,9 @@ importers:
       drizzle-kit:
         specifier: ^0.24.0
         version: 0.24.2
+      tsx:
+        specifier: ^4.0.0
+        version: 4.22.4
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
