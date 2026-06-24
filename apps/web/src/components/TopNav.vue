@@ -16,6 +16,7 @@ const links = [
   { to: { name: 'accounts' }, label: 'Comptes', key: 'accounts' },
   { to: { name: 'categories' }, label: 'Categories', key: 'categories' },
   { to: { name: 'budgets' }, label: 'Pressupostos', key: 'budgets' },
+  { to: { name: 'import' }, label: 'Importar', key: 'import' },
 ] as const;
 
 function isActive(key: string): boolean {

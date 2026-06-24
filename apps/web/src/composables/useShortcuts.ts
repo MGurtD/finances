@@ -1,6 +1,6 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 
-export type GotoTarget = 'dashboard' | 'moviments' | 'accounts' | 'categories' | 'budgets';
+export type GotoTarget = 'dashboard' | 'moviments' | 'accounts' | 'categories' | 'budgets' | 'import';
 
 function isEditable(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -58,6 +58,7 @@ export function useShortcuts(handlers: {
         a: 'accounts',
         c: 'categories',
         b: 'budgets',
+        i: 'import',
       };
       const target = map[e.key];
       pendingG.value = false;

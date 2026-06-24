@@ -6,6 +6,8 @@ import type {
   Account,
   Budget,
   BudgetProgress,
+  BulkCreateInput,
+  BulkCreateResult,
   Category,
   CategoryTreeNode,
   CreateAccountInput,
@@ -207,6 +209,18 @@ export function useDeleteBudget() {
   return useMutation({
     mutationFn: (id: string) => trpc.budgets.delete.mutate({ id }),
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['budgets'] });
+    },
+  });
+}
+
+export function useBulkCreateTransactions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: BulkCreateInput) => trpc.transactions.bulkCreate.mutate(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['transactions'] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
       void qc.invalidateQueries({ queryKey: ['budgets'] });
     },
   });

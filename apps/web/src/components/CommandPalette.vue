@@ -40,6 +40,7 @@ const staticItems = computed<Item[]>(() => [
   { id: 'nav-a', group: 'Navegacio', label: 'Comptes', kbd: 'g a', action: () => navigate('accounts') },
   { id: 'nav-c', group: 'Navegacio', label: 'Categories', kbd: 'g c', action: () => navigate('categories') },
   { id: 'nav-b', group: 'Navegacio', label: 'Pressupostos', kbd: 'g b', action: () => navigate('budgets') },
+  { id: 'nav-i', group: 'Navegacio', label: 'Importar', kbd: 'g i', action: () => navigate('import') },
   {
     id: 'act-new',
     group: 'Accions',

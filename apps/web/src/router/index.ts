@@ -37,6 +37,11 @@ export const router = createRouter({
       component: () => import('@/views/Budgets.vue'),
     },
     {
+      path: '/import',
+      name: 'import',
+      component: () => import('@/views/Import.vue'),
+    },
+    {
       path: '/health',
       name: 'health',
       component: () => import('@/views/Health.vue'),
