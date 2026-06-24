@@ -4,6 +4,8 @@ import { computed, toValue } from 'vue';
 import { trpc } from '@/trpc/client';
 import type {
   Account,
+  Budget,
+  BudgetProgress,
   Category,
   CategoryTreeNode,
   CreateAccountInput,
@@ -16,6 +18,7 @@ import type {
   Transaction,
   UpdateAccountInput,
   UpdateCategoryInput,
+  UpsertBudgetInput,
 } from '@finances/contracts';
 
 type MaybeRef<T> = MaybeRefOrGetter<T> | ComputedRef<T>;
@@ -30,6 +33,8 @@ export const financeKeys = {
   dashboardSummary: (from: string, to: string) => ['dashboard', 'summary', from, to] as const,
   recentTransactions: (limit: number) => ['transactions', 'recent', limit] as const,
   summaryByMonth: (months: number) => ['transactions', 'summaryByMonth', months] as const,
+  budgets: (month: string) => ['budgets', month] as const,
+  budgetStatus: (month: string) => ['budgets', 'status', month] as const,
 };
 
 export function useAccounts() {
@@ -177,6 +182,33 @@ export function useSummaryByMonth(months: number = 6) {
     queryKey: financeKeys.summaryByMonth(months),
     queryFn: () => trpc.transactions.summaryByMonth.query({ months }),
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useBudgetStatus(month: MaybeRef<string>) {
+  return useQuery<BudgetProgress[]>({
+    queryKey: computed(() => financeKeys.budgetStatus(toValue(month))),
+    queryFn: () => trpc.budgets.status.query({ month: toValue(month) }),
+  });
+}
+
+export function useUpsertBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpsertBudgetInput) => trpc.budgets.upsert.mutate(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['budgets'] });
+    },
+  });
+}
+
+export function useDeleteBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => trpc.budgets.delete.mutate({ id }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['budgets'] });
+    },
   });
 }
 

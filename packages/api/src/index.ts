@@ -42,6 +42,11 @@ import {
   CategoryAggregateSchema,
   DashboardSummaryInput,
   DashboardSummarySchema,
+  BudgetSchema,
+  UpsertBudgetInput,
+  UpdateBudgetInput,
+  BudgetProgressSchema,
+  BudgetStatusInput,
 } from '@finances/contracts';
 
 const t = initTRPC.create({
@@ -196,6 +201,29 @@ const dashboardRouter = router({
     })),
 });
 
+const budgetsRouter = router({
+  list: protectedProcedure
+    .input(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }))
+    .output(z.array(BudgetSchema))
+    .query(() => [] as unknown as z.infer<typeof BudgetSchema>[]),
+  upsert: protectedProcedure
+    .input(UpsertBudgetInput)
+    .output(BudgetSchema)
+    .mutation(() => ({} as unknown as z.infer<typeof BudgetSchema>)),
+  update: protectedProcedure
+    .input(UpdateBudgetInput)
+    .output(BudgetSchema)
+    .mutation(() => ({} as unknown as z.infer<typeof BudgetSchema>)),
+  delete: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .output(z.object({ id: z.string().uuid() }))
+    .mutation(() => ({ id: '' })),
+  status: protectedProcedure
+    .input(BudgetStatusInput)
+    .output(z.array(BudgetProgressSchema))
+    .query(() => [] as unknown as z.infer<typeof BudgetProgressSchema>[]),
+});
+
 export const appRouter = router({
   health: healthRouter,
   auth: authRouter,
@@ -203,6 +231,7 @@ export const appRouter = router({
   categories: categoriesRouter,
   transactions: transactionsRouter,
   dashboard: dashboardRouter,
+  budgets: budgetsRouter,
 });
 
 export type AppRouter = typeof appRouter;

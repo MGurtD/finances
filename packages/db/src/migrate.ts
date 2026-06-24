@@ -54,6 +54,15 @@ export function migrate(): void {
     CREATE INDEX IF NOT EXISTS transactions_date_idx ON transactions(date);
     CREATE INDEX IF NOT EXISTS transactions_account_idx ON transactions(account_id);
     CREATE INDEX IF NOT EXISTS transactions_category_idx ON transactions(category_id);
+
+    CREATE TABLE IF NOT EXISTS budgets (
+      id TEXT PRIMARY KEY,
+      category_id TEXT REFERENCES categories(id),
+      month TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
 
   for (const ddl of ADDITIVE_COLUMNS) {
@@ -71,4 +80,6 @@ const ADDITIVE_COLUMNS = [
   'ALTER TABLE transactions ADD COLUMN import_hash TEXT',
   'CREATE INDEX IF NOT EXISTS transactions_account_date_idx ON transactions(account_id, date)',
   'CREATE INDEX IF NOT EXISTS transactions_import_hash_idx ON transactions(import_hash)',
+  'CREATE INDEX IF NOT EXISTS budgets_month_idx ON budgets(month)',
+  'CREATE UNIQUE INDEX IF NOT EXISTS budgets_category_month_unique ON budgets(category_id, month)',
 ];

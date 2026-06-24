@@ -9,8 +9,10 @@ import {
   useDashboardSummary,
   useRecentTransactions,
   useSummaryByMonth,
+  useBudgetStatus,
 } from '@/composables/queries';
 import { useMonth } from '@/composables/useMonth';
+import { formatMoney } from '@finances/ui';
 import MonthSelector from '@/components/MonthSelector.vue';
 import AddMovementDialog from '@/components/AddMovementDialog.vue';
 import MonthlyTrendChart from '@/components/charts/MonthlyTrendChart.vue';
@@ -29,8 +31,27 @@ const filter = computed(() => ({ from: month.from.value, to: month.to.value }));
 const { data: summary, isLoading, isError } = useDashboardSummary(filter);
 const { data: trend } = useSummaryByMonth(6);
 const { data: recent, isLoading: recentLoading } = useRecentTransactions(6);
+const { data: budgetStatus } = useBudgetStatus(month.currentMonth);
 
 const expenseBreakdown = computed(() => summary.value?.byCategory ?? []);
+
+const budgetHighlights = computed(() => {
+  const list = budgetStatus.value ?? [];
+  return list
+    .filter((b) => b.budgetCents > 0)
+    .sort((a, b) => b.percent - a.percent)
+    .slice(0, 4);
+});
+
+function statusColor(status: string): string {
+  if (status === 'over') return '#c62828';
+  if (status === 'warning') return '#ed6c02';
+  return '#2e7d32';
+}
+
+function fillWidth(percent: number): number {
+  return Math.min(100, Math.max(2, percent));
+}
 
 async function logout() {
   try {
@@ -115,6 +136,44 @@ async function logout() {
       </div>
 
       <template v-else>
+        <!-- Budgets highlight -->
+        <Card v-if="budgetHighlights.length > 0" padding="lg">
+          <header class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold">Pressupostos</h3>
+            <RouterLink to="/budgets" class="text-xs text-accent hover:underline">
+              Gestionar →
+            </RouterLink>
+          </header>
+          <ul class="space-y-3">
+            <li v-for="b in budgetHighlights" :key="b.budgetId ?? b.categoryName" class="space-y-1.5">
+              <div class="flex items-center gap-3">
+                <span
+                  class="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                  :style="{ backgroundColor: b.categoryColor }"
+                />
+                <span class="flex-1 text-sm font-medium truncate">{{ b.categoryName }}</span>
+                <span
+                  class="text-xs font-mono tabular-nums shrink-0"
+                  :style="{ color: statusColor(b.status) }"
+                >
+                  {{ b.percent }}%
+                </span>
+              </div>
+              <div class="flex items-baseline justify-between text-xs">
+                <span class="text-ink-subtle">
+                  {{ formatMoney(b.spentCents) }} / {{ formatMoney(b.budgetCents) }}
+                </span>
+              </div>
+              <div class="h-1.5 bg-surface-2 rounded-full overflow-hidden">
+                <div
+                  class="h-full rounded-full transition-all duration-500 ease-smooth"
+                  :style="{ width: `${fillWidth(b.percent)}%`, backgroundColor: statusColor(b.status) }"
+                />
+              </div>
+            </li>
+          </ul>
+        </Card>
+
         <!-- Trend -->
         <Card padding="lg">
           <header class="flex items-center justify-between mb-5">
