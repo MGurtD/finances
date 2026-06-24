@@ -54,8 +54,6 @@ export function migrate(): void {
     CREATE INDEX IF NOT EXISTS transactions_date_idx ON transactions(date);
     CREATE INDEX IF NOT EXISTS transactions_account_idx ON transactions(account_id);
     CREATE INDEX IF NOT EXISTS transactions_category_idx ON transactions(category_id);
-    CREATE INDEX IF NOT EXISTS transactions_account_date_idx ON transactions(account_id, date);
-    CREATE INDEX IF NOT EXISTS transactions_import_hash_idx ON transactions(import_hash);
   `);
 
   for (const ddl of ADDITIVE_COLUMNS) {
