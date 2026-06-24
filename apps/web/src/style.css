@@ -1,4 +1,15 @@
-/* App-level overrides only — design system lives in @finances/ui */
+/* App entry stylesheet — design tokens + Tailwind layers from @finances/ui,
+ * plus app-level overrides.
+ *
+ * NOTE: the @tailwind directives live in @finances/ui but Tailwind's
+ * PostCSS plugin only runs on CSS processed from apps/web (Vite skips
+ * PostCSS for files resolved out of node_modules), so we @import the
+ * design-system stylesheet here explicitly so PostCSS sees the
+ * @tailwind directives and emits utility classes for this app.
+ */
+@import '@finances/ui/styles/tokens.css';
+@import '@finances/ui/styles/base.css';
+
 html, body, #app {
   min-height: 100vh;
 }
