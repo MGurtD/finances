@@ -1,8 +1,8 @@
 import { TRPCError } from '@trpc/server';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@finances/db';
-import { accounts } from '@finances/db';
+import { accounts, transactions } from '@finances/db';
 import {
   AccountSchema,
   CreateAccountInput,
@@ -128,5 +128,34 @@ export const accountsRouter = router({
         });
       }
       return { count: input.ids.length };
+    }),
+
+  /**
+   * Current balance per account: initial_balance + Σ(income) − Σ(expense).
+   * Transfer entries net to zero (one +leg, one −leg) so they're included as-is.
+   * Used by /accounts list to render the running balance.
+   */
+  balances: protectedProcedure
+    .output(z.array(z.object({ accountId: z.string().uuid(), balanceCents: z.number().int() })))
+    .query(() => {
+      const accs = db.select().from(accounts).all();
+      const txRows = db
+        .select({
+          accountId: transactions.accountId,
+          income: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.kind} = 'income' THEN ${transactions.amount} ELSE 0 END), 0)`,
+          expense: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.kind} = 'expense' THEN ${transactions.amount} ELSE 0 END), 0)`,
+        })
+        .from(transactions)
+        .groupBy(transactions.accountId)
+        .all();
+
+      const txMap = new Map<string, { income: number; expense: number }>();
+      for (const row of txRows) txMap.set(row.accountId, { income: row.income, expense: row.expense });
+
+      return accs.map((a) => {
+        const totals = txMap.get(a.id) ?? { income: 0, expense: 0 };
+        const balanceCents = a.initialBalance + totals.income - totals.expense;
+        return { accountId: a.id, balanceCents };
+      });
     }),
 });

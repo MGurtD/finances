@@ -103,6 +103,9 @@ const accountsRouter = router({
     .input(ReorderInput)
     .output(z.object({ count: z.number().int() }))
     .mutation(() => ({ count: 0 })),
+  balances: protectedProcedure
+    .output(z.array(z.object({ accountId: z.string().uuid(), balanceCents: z.number().int() })))
+    .query(() => [] as unknown as { accountId: string; balanceCents: number }[]),
 });
 
 const categoriesRouter = router({

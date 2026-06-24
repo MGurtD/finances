@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Button, Card, Input, formatMoney, parseMoneyInput } from '@finances/ui';
 import type { Category } from '@finances/contracts';
 import { useAddMovementStore } from '@/stores/addMovement';
@@ -69,6 +69,17 @@ async function submit() {
     error.value = e instanceof Error ? e.message : "Error creant el moviment";
   }
 }
+
+function onKeydown(e: KeyboardEvent) {
+  if (!store.isOpen) return;
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    void submit();
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown));
+onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 </script>
 
 <template>

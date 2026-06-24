@@ -22,6 +22,16 @@ export const router = createRouter({
       component: () => import('@/views/Moviments.vue'),
     },
     {
+      path: '/accounts',
+      name: 'accounts',
+      component: () => import('@/views/Accounts.vue'),
+    },
+    {
+      path: '/categories',
+      name: 'categories',
+      component: () => import('@/views/Categories.vue'),
+    },
+    {
       path: '/health',
       name: 'health',
       component: () => import('@/views/Health.vue'),

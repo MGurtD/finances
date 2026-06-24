@@ -5,18 +5,26 @@ import { trpc } from '@/trpc/client';
 import type {
   Account,
   Category,
+  CategoryTreeNode,
+  CreateAccountInput,
+  CreateCategoryInput,
   CreateTransactionInput,
   DashboardSummary,
   MonthlySummary,
   RecentTransaction,
+  ReorderInput,
   Transaction,
+  UpdateAccountInput,
+  UpdateCategoryInput,
 } from '@finances/contracts';
 
 type MaybeRef<T> = MaybeRefOrGetter<T> | ComputedRef<T>;
 
 export const financeKeys = {
   accounts: () => ['accounts'] as const,
+  accountBalances: () => ['accounts', 'balances'] as const,
   categories: () => ['categories'] as const,
+  categoryTree: (kind?: 'income' | 'expense') => ['categories', 'tree', kind ?? 'all'] as const,
   transactions: (filter: { from?: string; to?: string; accountId?: string }) =>
     ['transactions', filter] as const,
   dashboardSummary: (from: string, to: string) => ['dashboard', 'summary', from, to] as const,
@@ -32,11 +40,99 @@ export function useAccounts() {
   });
 }
 
+export function useAccountBalances() {
+  return useQuery<{ accountId: string; balanceCents: number }[]>({
+    queryKey: financeKeys.accountBalances(),
+    queryFn: () => trpc.accounts.balances.query(),
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateAccountInput) => trpc.accounts.create.mutate(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['accounts'] });
+    },
+  });
+}
+
+export function useUpdateAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateAccountInput) => trpc.accounts.update.mutate(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['accounts'] });
+      void qc.invalidateQueries({ queryKey: ['accountBalances'] });
+    },
+  });
+}
+
+export function useArchiveAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => trpc.accounts.archive.mutate({ id }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['accounts'] });
+      void qc.invalidateQueries({ queryKey: ['accountBalances'] });
+    },
+  });
+}
+
 export function useCategories() {
   return useQuery<Category[]>({
     queryKey: financeKeys.categories(),
     queryFn: () => trpc.categories.list.query(),
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useCategoryTree(kind?: MaybeRef<'income' | 'expense' | undefined>) {
+  return useQuery<CategoryTreeNode[]>({
+    queryKey: computed(() => financeKeys.categoryTree(toValue(kind))),
+    queryFn: () => trpc.categories.tree.query({ kind: toValue(kind) }),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useCreateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateCategoryInput) => trpc.categories.create.mutate(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+}
+
+export function useUpdateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateCategoryInput) => trpc.categories.update.mutate(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+}
+
+export function useArchiveCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => trpc.categories.archive.mutate({ id }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+}
+
+export function useReorderCategories() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReorderInput) => trpc.categories.reorder.mutate(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['categories'] });
+    },
   });
 }
 
