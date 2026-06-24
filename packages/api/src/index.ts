@@ -30,7 +30,16 @@ import {
   UpdateCategoryInput,
   TransactionSchema,
   CreateTransactionInput,
+  UpdateTransactionInput,
   ListTransactionsInput,
+  BulkCreateInput,
+  BulkCreateResult,
+  RecentTransactionsInput,
+  RecentTransactionSchema,
+  SummaryByMonthInput,
+  MonthlySummarySchema,
+  SummaryByCategoryInput,
+  CategoryAggregateSchema,
   DashboardSummaryInput,
   DashboardSummarySchema,
 } from '@finances/contracts';
@@ -73,23 +82,23 @@ const authRouter = router({
 const accountsRouter = router({
   list: protectedProcedure
     .output(z.array(AccountSchema))
-    .query(() => [] as never[]),
+    .query(() => [] as unknown as z.infer<typeof AccountSchema>[]),
   byId: protectedProcedure
     .input(IdInput)
     .output(AccountSchema)
-    .query(() => ({} as never)),
+    .query(() => ({} as unknown as z.infer<typeof AccountSchema>)),
   create: protectedProcedure
     .input(CreateAccountInput)
     .output(AccountSchema)
-    .mutation(() => ({} as never)),
+    .mutation(() => ({} as unknown as z.infer<typeof AccountSchema>)),
   update: protectedProcedure
     .input(UpdateAccountInput)
     .output(AccountSchema)
-    .mutation(() => ({} as never)),
+    .mutation(() => ({} as unknown as z.infer<typeof AccountSchema>)),
   archive: protectedProcedure
     .input(IdInput)
     .output(AccountSchema)
-    .mutation(() => ({} as never)),
+    .mutation(() => ({} as unknown as z.infer<typeof AccountSchema>)),
   reorder: protectedProcedure
     .input(ReorderInput)
     .output(z.object({ count: z.number().int() }))
@@ -100,27 +109,27 @@ const categoriesRouter = router({
   list: protectedProcedure
     .input(z.object({ includeArchived: z.boolean().default(false) }).optional())
     .output(z.array(CategorySchema))
-    .query(() => [] as never[]),
+    .query(() => [] as unknown as z.infer<typeof CategorySchema>[]),
   byId: protectedProcedure
     .input(IdInput)
     .output(CategorySchema)
-    .query(() => ({} as never)),
+    .query(() => ({} as unknown as z.infer<typeof CategorySchema>)),
   tree: protectedProcedure
     .input(z.object({ kind: z.enum(['income', 'expense']).optional() }).optional())
     .output(z.array(CategoryTreeNodeSchema))
-    .query(() => [] as never[]),
+    .query(() => [] as unknown as z.infer<typeof CategoryTreeNodeSchema>[]),
   create: protectedProcedure
     .input(CreateCategoryInput)
     .output(CategorySchema)
-    .mutation(() => ({} as never)),
+    .mutation(() => ({} as unknown as z.infer<typeof CategorySchema>)),
   update: protectedProcedure
     .input(UpdateCategoryInput)
     .output(CategorySchema)
-    .mutation(() => ({} as never)),
+    .mutation(() => ({} as unknown as z.infer<typeof CategorySchema>)),
   archive: protectedProcedure
     .input(IdInput)
     .output(CategorySchema)
-    .mutation(() => ({} as never)),
+    .mutation(() => ({} as unknown as z.infer<typeof CategorySchema>)),
   reorder: protectedProcedure
     .input(ReorderInput)
     .output(z.object({ count: z.number().int() }))
@@ -131,11 +140,19 @@ const transactionsRouter = router({
   list: protectedProcedure
     .input(ListTransactionsInput)
     .output(z.array(TransactionSchema))
-    .query(() => [] as never[]),
+    .query(() => [] as unknown as z.infer<typeof TransactionSchema>[]),
+  byId: protectedProcedure
+    .input(IdInput)
+    .output(TransactionSchema)
+    .query(() => ({} as unknown as z.infer<typeof TransactionSchema>)),
   create: protectedProcedure
     .input(CreateTransactionInput)
     .output(TransactionSchema)
-    .mutation(() => ({} as never)),
+    .mutation(() => ({} as unknown as z.infer<typeof TransactionSchema>)),
+  update: protectedProcedure
+    .input(UpdateTransactionInput)
+    .output(TransactionSchema)
+    .mutation(() => ({} as unknown as z.infer<typeof TransactionSchema>)),
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ id: z.string().uuid() }))
@@ -143,6 +160,22 @@ const transactionsRouter = router({
   hasAny: protectedProcedure
     .output(z.boolean())
     .query(() => false),
+  bulkCreate: protectedProcedure
+    .input(BulkCreateInput)
+    .output(BulkCreateResult)
+    .mutation(() => ({ created: 0, skipped: 0, errors: 0 })),
+  recent: protectedProcedure
+    .input(RecentTransactionsInput)
+    .output(z.array(RecentTransactionSchema))
+    .query(() => [] as unknown as z.infer<typeof RecentTransactionSchema>[]),
+  summaryByMonth: protectedProcedure
+    .input(SummaryByMonthInput)
+    .output(z.array(MonthlySummarySchema))
+    .query(() => [] as unknown as z.infer<typeof MonthlySummarySchema>[]),
+  summaryByCategory: protectedProcedure
+    .input(SummaryByCategoryInput)
+    .output(z.array(CategoryAggregateSchema))
+    .query(() => [] as unknown as z.infer<typeof CategoryAggregateSchema>[]),
 });
 
 const dashboardRouter = router({

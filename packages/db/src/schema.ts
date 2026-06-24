@@ -44,6 +44,7 @@ export const transactions = sqliteTable(
     description: text('description').notNull().default(''),
     notes: text('notes').notNull().default(''),
     date: text('date').notNull(),
+    importHash: text('import_hash'),
     transferAccountId: text('transfer_account_id').references(() => accounts.id),
     createdAt: text('created_at').notNull().$defaultFn(now),
     updatedAt: text('updated_at').notNull().$defaultFn(now),
@@ -52,6 +53,8 @@ export const transactions = sqliteTable(
     dateIdx: index('transactions_date_idx').on(t.date),
     accountIdx: index('transactions_account_idx').on(t.accountId),
     categoryIdx: index('transactions_category_idx').on(t.categoryId),
+    accountDateIdx: index('transactions_account_date_idx').on(t.accountId, t.date),
+    importHashIdx: index('transactions_import_hash_idx').on(t.importHash),
   }),
 );
 

@@ -45,6 +45,7 @@ export function migrate(): void {
       description TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
       date TEXT NOT NULL,
+      import_hash TEXT,
       transfer_account_id TEXT REFERENCES accounts(id),
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -53,13 +54,15 @@ export function migrate(): void {
     CREATE INDEX IF NOT EXISTS transactions_date_idx ON transactions(date);
     CREATE INDEX IF NOT EXISTS transactions_account_idx ON transactions(account_id);
     CREATE INDEX IF NOT EXISTS transactions_category_idx ON transactions(category_id);
+    CREATE INDEX IF NOT EXISTS transactions_account_date_idx ON transactions(account_id, date);
+    CREATE INDEX IF NOT EXISTS transactions_import_hash_idx ON transactions(import_hash);
   `);
 
   for (const ddl of ADDITIVE_COLUMNS) {
     try {
       rawSqlite.exec(ddl);
     } catch {
-      // column already exists or other non-fatal issue — safe to ignore on idempotent runs
+      // column/index already exists or other non-fatal issue — safe to ignore on idempotent runs
     }
   }
 }
@@ -67,4 +70,7 @@ export function migrate(): void {
 const ADDITIVE_COLUMNS = [
   'ALTER TABLE accounts ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0',
   'ALTER TABLE categories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE transactions ADD COLUMN import_hash TEXT',
+  'CREATE INDEX IF NOT EXISTS transactions_account_date_idx ON transactions(account_id, date)',
+  'CREATE INDEX IF NOT EXISTS transactions_import_hash_idx ON transactions(import_hash)',
 ];
