@@ -1,0 +1,104 @@
+/* ==============================================
+   DESIGN TOKENS — Finances
+   Warm + personal + dark mode native
+   ============================================== */
+
+:root,
+[data-theme='light'] {
+  /* Surfaces */
+  --bg: #faf7f2;            /* warm cream */
+  --surface: #ffffff;
+  --surface-2: #f3ede4;     /* slightly deeper cream */
+
+  /* Ink (text) */
+  --ink: #2b1810;           /* warm brown ink */
+  --ink-muted: #6b5d50;
+  --ink-subtle: #8b7355;
+
+  /* Borders */
+  --border: #ebe3d6;
+
+  /* Brand accent — terracotta */
+  --accent: #e85d2c;
+  --accent-hover: #d04d1c;
+
+  /* Semantic */
+  --positive: #2e7d32;      /* forest green */
+  --negative: #c62828;      /* terracotta red */
+  --warning: #ed6c02;       /* amber */
+
+  /* Chart palette (5 categories) */
+  --chart-1: #e85d2c;
+  --chart-2: #2e7d32;
+  --chart-3: #1976d2;
+  --chart-4: #7b1fa2;
+  --chart-5: #ed6c02;
+
+  /* Radius & motion */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Shadows tuned for warm light mode */
+  --shadow-soft: 0 2px 8px -2px rgb(43 24 16 / 0.08), 0 4px 16px -4px rgb(43 24 16 / 0.04);
+  --shadow-soft-lg: 0 8px 24px -8px rgb(43 24 16 / 0.12), 0 16px 48px -16px rgb(43 24 16 / 0.06);
+}
+
+[data-theme='dark'] {
+  /* Surfaces */
+  --bg: #1a1612;            /* warm dark, never pure black */
+  --surface: #252019;
+  --surface-2: #2f2920;
+
+  /* Ink (text) */
+  --ink: #faf7f2;           /* cream text */
+  --ink-muted: #c4b8a8;
+  --ink-subtle: #8a7d6e;
+
+  /* Borders */
+  --border: #3a3328;
+
+  /* Brand accent — slightly brighter for dark contrast */
+  --accent: #ff8c5a;
+  --accent-hover: #ffa578;
+
+  /* Semantic — tuned for dark */
+  --positive: #7cb342;
+  --negative: #ef5350;
+  --warning: #ffa726;
+
+  /* Chart palette — slightly brighter for dark backgrounds */
+  --chart-1: #ff8c5a;
+  --chart-2: #7cb342;
+  --chart-3: #64b5f6;
+  --chart-4: #ba68c8;
+  --chart-5: #ffb74d;
+
+  /* Shadows tuned for warm dark mode */
+  --shadow-soft: 0 2px 8px -2px rgb(0 0 0 / 0.4), 0 4px 16px -4px rgb(0 0 0 / 0.2);
+  --shadow-soft-lg: 0 8px 24px -8px rgb(0 0 0 / 0.5), 0 16px 48px -16px rgb(0 0 0 / 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #1a1612;
+    --surface: #252019;
+    --surface-2: #2f2920;
+    --ink: #faf7f2;
+    --ink-muted: #c4b8a8;
+    --ink-subtle: #8a7d6e;
+    --border: #3a3328;
+    --accent: #ff8c5a;
+    --accent-hover: #ffa578;
+    --positive: #7cb342;
+    --negative: #ef5350;
+    --warning: #ffa726;
+    --chart-1: #ff8c5a;
+    --chart-2: #7cb342;
+    --chart-3: #64b5f6;
+    --chart-4: #ba68c8;
+    --chart-5: #ffb74d;
+    --shadow-soft: 0 2px 8px -2px rgb(0 0 0 / 0.4), 0 4px 16px -4px rgb(0 0 0 / 0.2);
+    --shadow-soft-lg: 0 8px 24px -8px rgb(0 0 0 / 0.5), 0 16px 48px -16px rgb(0 0 0 / 0.25);
+  }
+}
