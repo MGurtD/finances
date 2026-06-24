@@ -6,10 +6,10 @@ import {
   DashboardSummarySchema,
   CategoryBreakdownSchema,
 } from '@finances/contracts';
-import { router, publicProcedure } from '../trpc/trpc.js';
+import { router, protectedProcedure } from '../trpc/trpc.js';
 
 export const dashboardRouter = router({
-  summary: publicProcedure
+  summary: protectedProcedure
     .input(DashboardSummaryInput)
     .output(DashboardSummarySchema)
     .query(({ input }) => {

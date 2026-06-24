@@ -3,14 +3,14 @@ import { z } from 'zod';
 import { db } from '@finances/db';
 import { accounts } from '@finances/db';
 import { AccountSchema, CreateAccountInput } from '@finances/contracts';
-import { router, publicProcedure } from '../trpc/trpc.js';
+import { router, protectedProcedure } from '../trpc/trpc.js';
 
 export const accountsRouter = router({
-  list: publicProcedure
+  list: protectedProcedure
     .output(z.array(AccountSchema))
     .query(() => db.select().from(accounts).all()),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(CreateAccountInput)
     .output(AccountSchema)
     .mutation(({ input }) => {

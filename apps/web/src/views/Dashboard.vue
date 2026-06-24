@@ -1,20 +1,33 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Card, StatCard, ThemeToggle } from '@finances/ui';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import { useThemeStore } from '@/stores/theme';
 import { useAddMovementStore } from '@/stores/addMovement';
+import { useAuthStore } from '@/stores/auth';
 import { useDashboardSummary } from '@/composables/queries';
 import { useMonth } from '@/composables/useMonth';
 import MonthSelector from '@/components/MonthSelector.vue';
 import AddMovementDialog from '@/components/AddMovementDialog.vue';
+import { trpc } from '@/trpc/client';
 
 const themeStore = useThemeStore();
 const addMovement = useAddMovementStore();
+const auth = useAuthStore();
+const router = useRouter();
 const month = useMonth();
 
 const filter = computed(() => ({ from: month.from.value, to: month.to.value }));
 const { data: summary, isLoading, isError } = useDashboardSummary(filter);
+
+async function logout() {
+  try {
+    await trpc.auth.logout.mutate();
+  } finally {
+    auth.clear();
+    void router.replace({ name: 'login' });
+  }
+}
 </script>
 
 <template>
@@ -30,6 +43,15 @@ const { data: summary, isLoading, isError } = useDashboardSummary(filter);
           >
             ·API
           </RouterLink>
+          <button
+            v-if="auth.authenticated"
+            type="button"
+            class="text-xs text-ink-subtle hover:text-ink px-2 py-1 rounded"
+            aria-label="Tanca la sessió"
+            @click="logout"
+          >
+            Tanca sessió
+          </button>
           <ThemeToggle @click="themeStore.toggleTheme()" />
         </div>
       </div>

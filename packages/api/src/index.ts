@@ -19,6 +19,8 @@ import superjson from 'superjson';
 import { z } from 'zod';
 import {
   HealthSchema,
+  AuthStatusSchema,
+  LoginInput,
   AccountSchema,
   CreateAccountInput,
   CategorySchema,
@@ -35,6 +37,7 @@ const t = initTRPC.create({
 });
 
 const publicProcedure = t.procedure;
+const protectedProcedure = t.procedure;
 const router = t.router;
 
 const healthRouter = router({
@@ -48,46 +51,59 @@ const healthRouter = router({
     })),
 });
 
+const authRouter = router({
+  status: publicProcedure
+    .output(AuthStatusSchema)
+    .query(() => ({ authenticated: false })),
+  login: publicProcedure
+    .input(LoginInput)
+    .output(AuthStatusSchema)
+    .mutation(() => ({ authenticated: false as const })),
+  logout: publicProcedure
+    .output(AuthStatusSchema)
+    .mutation(() => ({ authenticated: false as const })),
+});
+
 const accountsRouter = router({
-  list: publicProcedure
+  list: protectedProcedure
     .output(z.array(AccountSchema))
     .query(() => []),
-  create: publicProcedure
+  create: protectedProcedure
     .input(CreateAccountInput)
     .output(AccountSchema)
     .mutation(() => ({} as never)),
 });
 
 const categoriesRouter = router({
-  list: publicProcedure
+  list: protectedProcedure
     .output(z.array(CategorySchema))
     .query(() => []),
-  create: publicProcedure
+  create: protectedProcedure
     .input(CreateCategoryInput)
     .output(CategorySchema)
     .mutation(() => ({} as never)),
 });
 
 const transactionsRouter = router({
-  list: publicProcedure
+  list: protectedProcedure
     .input(ListTransactionsInput)
     .output(z.array(TransactionSchema))
     .query(() => []),
-  create: publicProcedure
+  create: protectedProcedure
     .input(CreateTransactionInput)
     .output(TransactionSchema)
     .mutation(() => ({} as never)),
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ id: z.string().uuid() }))
     .mutation(() => ({ id: '' })),
-  hasAny: publicProcedure
+  hasAny: protectedProcedure
     .output(z.boolean())
     .query(() => false),
 });
 
 const dashboardRouter = router({
-  summary: publicProcedure
+  summary: protectedProcedure
     .input(DashboardSummaryInput)
     .output(DashboardSummarySchema)
     .query(() => ({
@@ -103,6 +119,7 @@ const dashboardRouter = router({
 
 export const appRouter = router({
   health: healthRouter,
+  auth: authRouter,
   accounts: accountsRouter,
   categories: categoriesRouter,
   transactions: transactionsRouter,

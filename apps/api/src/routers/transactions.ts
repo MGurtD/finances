@@ -6,11 +6,11 @@ import {
   CreateTransactionInput,
   ListTransactionsInput,
 } from '@finances/contracts';
-import { router, publicProcedure } from '../trpc/trpc.js';
+import { router, protectedProcedure } from '../trpc/trpc.js';
 import { and, between, desc, eq, gte, lte, sql } from 'drizzle-orm';
 
 export const transactionsRouter = router({
-  list: publicProcedure
+  list: protectedProcedure
     .input(ListTransactionsInput)
     .output(z.array(TransactionSchema))
     .query(({ input }) => {
@@ -38,7 +38,7 @@ export const transactionsRouter = router({
         .all();
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(CreateTransactionInput)
     .output(TransactionSchema)
     .mutation(({ input }) => {
@@ -64,7 +64,7 @@ export const transactionsRouter = router({
       return row;
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .output(z.object({ id: z.string().uuid() }))
     .mutation(({ input }) => {
@@ -76,7 +76,7 @@ export const transactionsRouter = router({
    * True when there are zero transactions. Helps the UI distinguish
    * "fresh install" from "empty month".
    */
-  hasAny: publicProcedure
+  hasAny: protectedProcedure
     .output(z.boolean())
     .query(() => {
       const row = db

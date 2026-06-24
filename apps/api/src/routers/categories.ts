@@ -3,10 +3,10 @@ import { z } from 'zod';
 import { db } from '@finances/db';
 import { categories } from '@finances/db';
 import { CategorySchema, CreateCategoryInput } from '@finances/contracts';
-import { router, publicProcedure } from '../trpc/trpc.js';
+import { router, protectedProcedure } from '../trpc/trpc.js';
 
 export const categoriesRouter = router({
-  list: publicProcedure
+  list: protectedProcedure
     .output(z.array(CategorySchema))
     .query(() =>
       db
@@ -16,7 +16,7 @@ export const categoriesRouter = router({
         .all(),
     ),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(CreateCategoryInput)
     .output(CategorySchema)
     .mutation(({ input }) => {
