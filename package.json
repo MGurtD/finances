@@ -1,0 +1,19 @@
+{
+  "name": "finances",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted personal finance app",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "clean": "pnpm -r exec rm -rf node_modules dist .turbo"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.turbo/
+*.log
+.env
+.env.local
+.DS_Store
+data/
+*.db
+*.db-journal
+.vite/
+.storybook/
+coverage/
