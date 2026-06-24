@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { Button, formatMoney } from '@finances/ui';
-import { RouterLink } from 'vue-router';
 import type { Account, AccountType } from '@finances/contracts';
 import {
   useAccounts,
@@ -101,14 +100,8 @@ function typeLabel(t: AccountType): string {
 
 <template>
   <main class="min-h-screen bg-bg pb-24 sm:pb-0">
-    <header class="border-b border-border bg-surface/80 backdrop-blur sticky top-0 z-10">
-      <div class="container flex items-center justify-between h-16">
-        <h1 class="font-semibold text-lg">Comptes</h1>
-        <RouterLink to="/" class="text-sm text-accent hover:underline">← Inici</RouterLink>
-      </div>
-    </header>
-
     <div class="container py-8 space-y-6 animate-fade-in">
+      <h1 class="font-semibold text-lg">Comptes</h1>
       <!-- Total -->
       <div class="flex items-baseline justify-between">
         <span class="text-sm text-ink-subtle">Saldo total</span>

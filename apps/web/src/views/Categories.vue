@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { Button } from '@finances/ui';
-import { RouterLink } from 'vue-router';
 import type { CategoryTreeNode } from '@finances/contracts';
 import {
   useArchiveCategory,
   useCategoryTree,
   useCreateCategory,
-  useReorderCategories,
   useUpdateCategory,
 } from '@/composables/queries';
 import Modal from '@/components/Modal.vue';
@@ -17,7 +15,6 @@ const { data: expenseTree } = useCategoryTree('expense');
 const create = useCreateCategory();
 const update = useUpdateCategory();
 const archive = useArchiveCategory();
-const reorder = useReorderCategories();
 
 const COLORS = ['#8B7355', '#E85D2C', '#2E7D32', '#1976D2', '#7B1FA2', '#ED6C02', '#5D4037'];
 
@@ -168,14 +165,8 @@ const totalCount = computed(() => {
 
 <template>
   <main class="min-h-screen bg-bg pb-24 sm:pb-0">
-    <header class="border-b border-border bg-surface/80 backdrop-blur sticky top-0 z-10">
-      <div class="container flex items-center justify-between h-16">
-        <h1 class="font-semibold text-lg">Categories</h1>
-        <RouterLink to="/" class="text-sm text-accent hover:underline">← Inici</RouterLink>
-      </div>
-    </header>
-
     <div class="container py-8 space-y-8 animate-fade-in">
+      <h1 class="font-semibold text-lg">Categories</h1>
       <p v-if="totalCount === 0" class="text-sm text-ink-subtle text-center py-12">
         Encara no hi ha categories. Crea'n una amb el botó +.
       </p>

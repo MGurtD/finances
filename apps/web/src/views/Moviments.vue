@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Card, Button, formatMoney } from '@finances/ui';
-import { RouterLink } from 'vue-router';
 import { useAddMovementStore } from '@/stores/addMovement';
 import { useMonth } from '@/composables/useMonth';
 import { useTransactionsList, useCategories, useDeleteTransaction } from '@/composables/queries';
 import MonthSelector from '@/components/MonthSelector.vue';
-import AddMovementDialog from '@/components/AddMovementDialog.vue';
 
 const month = useMonth();
 const addMovement = useAddMovementStore();
@@ -45,14 +43,8 @@ function formatDate(iso: string): string {
 
 <template>
   <main class="min-h-screen bg-bg pb-24 sm:pb-0">
-    <header class="border-b border-border bg-surface/80 backdrop-blur sticky top-0 z-10">
-      <div class="container flex items-center justify-between h-16">
-        <h1 class="font-semibold text-lg">Moviments</h1>
-        <RouterLink to="/" class="text-sm text-accent hover:underline">← Inici</RouterLink>
-      </div>
-    </header>
-
     <div class="container py-8 space-y-6 animate-fade-in">
+      <h1 class="font-semibold text-lg">Moviments</h1>
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <MonthSelector :label="month.label.value" @prev="month.prev" @next="month.next" />
         <Button @click="addMovement.open({ date: month.from.value })">
@@ -117,7 +109,5 @@ function formatDate(iso: string): string {
         </div>
       </div>
     </div>
-
-    <AddMovementDialog />
   </main>
 </template>

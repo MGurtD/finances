@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Card, StatCard, ThemeToggle } from '@finances/ui';
-import { RouterLink, useRouter } from 'vue-router';
-import { useThemeStore } from '@/stores/theme';
+import { Card, StatCard } from '@finances/ui';
+import { RouterLink } from 'vue-router';
 import { useAddMovementStore } from '@/stores/addMovement';
-import { useAuthStore } from '@/stores/auth';
 import {
   useDashboardSummary,
   useRecentTransactions,
@@ -14,17 +12,12 @@ import {
 import { useMonth } from '@/composables/useMonth';
 import { formatMoney } from '@finances/ui';
 import MonthSelector from '@/components/MonthSelector.vue';
-import AddMovementDialog from '@/components/AddMovementDialog.vue';
 import MonthlyTrendChart from '@/components/charts/MonthlyTrendChart.vue';
 import CategoryDonutChart from '@/components/charts/CategoryDonutChart.vue';
 import TopCategoriesBarChart from '@/components/charts/TopCategoriesBarChart.vue';
 import RecentTransactionsCard from '@/components/RecentTransactionsCard.vue';
-import { trpc } from '@/trpc/client';
 
-const themeStore = useThemeStore();
 const addMovement = useAddMovementStore();
-const auth = useAuthStore();
-const router = useRouter();
 const month = useMonth();
 
 const filter = computed(() => ({ from: month.from.value, to: month.to.value }));
@@ -52,44 +45,10 @@ function statusColor(status: string): string {
 function fillWidth(percent: number): number {
   return Math.min(100, Math.max(2, percent));
 }
-
-async function logout() {
-  try {
-    await trpc.auth.logout.mutate();
-  } finally {
-    auth.clear();
-    void router.replace({ name: 'login' });
-  }
-}
 </script>
 
 <template>
   <main class="min-h-screen bg-bg pb-24 sm:pb-0">
-    <header class="border-b border-border bg-surface/80 backdrop-blur sticky top-0 z-10">
-      <div class="container flex items-center justify-between h-16">
-        <h1 class="font-semibold text-lg">Finances</h1>
-        <div class="flex items-center gap-1">
-          <RouterLink
-            to="/health"
-            class="text-xs text-ink-subtle hover:text-ink px-2 py-1 rounded"
-            aria-label="Estat de la connexió"
-          >
-            ·API
-          </RouterLink>
-          <button
-            v-if="auth.authenticated"
-            type="button"
-            class="text-xs text-ink-subtle hover:text-ink px-2 py-1 rounded"
-            aria-label="Tanca la sessió"
-            @click="logout"
-          >
-            Tanca sessió
-          </button>
-          <ThemeToggle @click="themeStore.toggleTheme()" />
-        </div>
-      </div>
-    </header>
-
     <div class="container py-8 space-y-8 animate-fade-in">
       <!-- Period -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -208,38 +167,5 @@ async function logout() {
         <RecentTransactionsCard :data="recent ?? []" :loading="recentLoading" />
       </template>
     </div>
-
-    <!-- Bottom nav (mobile) -->
-    <nav class="fixed bottom-0 inset-x-0 bg-surface border-t border-border sm:hidden z-20">
-      <div class="flex items-center justify-around h-16">
-        <RouterLink
-          to="/"
-          class="flex flex-col items-center gap-1 text-xs text-ink"
-          active-class="text-accent"
-          :exact-active-class="'text-accent'"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12L12 3l9 9M5 10v10h14V10"/></svg>
-          Inici
-        </RouterLink>
-        <RouterLink
-          to="/moviments"
-          class="flex flex-col items-center gap-1 text-xs text-ink-subtle"
-          active-class="text-accent"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-          Moviments
-        </RouterLink>
-        <button
-          type="button"
-          class="flex items-center justify-center w-12 h-12 -mt-4 rounded-full bg-accent text-white shadow-warm"
-          aria-label="Afegir moviment"
-          @click="addMovement.open()"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-        </button>
-      </div>
-    </nav>
-
-    <AddMovementDialog />
   </main>
 </template>

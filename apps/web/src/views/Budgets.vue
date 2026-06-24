@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { Card, formatMoney } from '@finances/ui';
-import { RouterLink } from 'vue-router';
 import {
   useBudgetStatus,
   useDeleteBudget,
@@ -87,14 +86,8 @@ function fillWidth(percent: number): number {
 
 <template>
   <main class="min-h-screen bg-bg pb-24 sm:pb-0">
-    <header class="border-b border-border bg-surface/80 backdrop-blur sticky top-0 z-10">
-      <div class="container flex items-center justify-between h-16">
-        <h1 class="font-semibold text-lg">Pressupostos</h1>
-        <RouterLink to="/" class="text-sm text-accent hover:underline">← Inici</RouterLink>
-      </div>
-    </header>
-
     <div class="container py-8 space-y-6 animate-fade-in">
+      <h1 class="font-semibold text-lg">Pressupostos</h1>
       <p class="text-sm text-ink-subtle">{{ month.label.value }}</p>
 
       <!-- Global budget -->
