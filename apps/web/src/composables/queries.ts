@@ -7,6 +7,8 @@ import type {
   Category,
   CreateTransactionInput,
   DashboardSummary,
+  MonthlySummary,
+  RecentTransaction,
   Transaction,
 } from '@finances/contracts';
 
@@ -18,6 +20,8 @@ export const financeKeys = {
   transactions: (filter: { from?: string; to?: string; accountId?: string }) =>
     ['transactions', filter] as const,
   dashboardSummary: (from: string, to: string) => ['dashboard', 'summary', from, to] as const,
+  recentTransactions: (limit: number) => ['transactions', 'recent', limit] as const,
+  summaryByMonth: (months: number) => ['transactions', 'summaryByMonth', months] as const,
 };
 
 export function useAccounts() {
@@ -62,6 +66,21 @@ export function useDashboardSummary(filter: MaybeRef<{ from: string; to: string;
       const f = toValue(filter);
       return trpc.dashboard.summary.query({ from: f.from, to: f.to });
     },
+  });
+}
+
+export function useRecentTransactions(limit: number = 5) {
+  return useQuery<RecentTransaction[]>({
+    queryKey: financeKeys.recentTransactions(limit),
+    queryFn: () => trpc.transactions.recent.query({ limit }),
+  });
+}
+
+export function useSummaryByMonth(months: number = 6) {
+  return useQuery<MonthlySummary[]>({
+    queryKey: financeKeys.summaryByMonth(months),
+    queryFn: () => trpc.transactions.summaryByMonth.query({ months }),
+    staleTime: 5 * 60_000,
   });
 }
 

@@ -83,6 +83,9 @@ importers:
       '@vueuse/core':
         specifier: ^11.0.0
         version: 11.3.0(vue@3.5.38(typescript@5.9.3))
+      chart.js:
+        specifier: ^4.5.1
+        version: 4.5.1
       pinia:
         specifier: ^2.2.0
         version: 2.3.1(typescript@5.9.3)(vue@3.5.38(typescript@5.9.3))
@@ -92,6 +95,9 @@ importers:
       vue:
         specifier: ^3.5.0
         version: 3.5.38(typescript@5.9.3)
+      vue-chartjs:
+        specifier: ^5.3.3
+        version: 5.3.3(chart.js@4.5.1)(vue@3.5.38(typescript@5.9.3))
       vue-router:
         specifier: ^4.4.0
         version: 4.6.4(vue@3.5.38(typescript@5.9.3))
@@ -874,6 +880,9 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
+  '@kurkle/color@0.3.4':
+    resolution: {integrity: sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w==}
+
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
     engines: {node: '>=8'}
@@ -1265,6 +1274,10 @@ packages:
 
   caniuse-lite@1.0.30001799:
     resolution: {integrity: sha512-hG1bReV+OUU+MOqK4t/ZWI0tZOyz3rqS9XuhOUz1cIcbwBKjOyJEJuw9ER5JuNyqxNk8u/JUVbGibBOL1yrjFw==}
+
+  chart.js@4.5.1:
+    resolution: {integrity: sha512-GIjfiT9dbmHRiYi6Nl2yFCq7kkwdkp1W/lp2J99rX0yo9tgJGn3lKQATztIjb5tVtevcBtIdICNWqlq5+E8/Pw==}
+    engines: {pnpm: '>=8'}
 
   chokidar@3.6.0:
     resolution: {integrity: sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw==}
@@ -2075,6 +2088,12 @@ packages:
   vscode-uri@3.1.0:
     resolution: {integrity: sha512-/BpdSx+yCQGnCvecbyXdxHDkuk55/G3xwnC0GqY4gmQ3j+A+g8kzzgB4Nk/SINjqn6+waqw3EgbVF2QKExkRxQ==}
 
+  vue-chartjs@5.3.3:
+    resolution: {integrity: sha512-jqxtL8KZ6YJ5NTv6XzrzLS7osyegOi28UGNZW0h9OkDL7Sh1396ht4Dorh04aKrl2LiSalQ84WtqiG0RIJb0tA==}
+    peerDependencies:
+      chart.js: ^4.1.1
+      vue: ^3.0.0-0 || ^2.7.0
+
   vue-demi@0.14.10:
     resolution: {integrity: sha512-nMZBOwuzabUO0nLgIcc6rycZEebF6eeUfaiQx9+WSk8e29IbLvPU9feI6tqW4kTo3hvoYAJkMh8n8D0fuISphg==}
     engines: {node: '>=12'}
@@ -2509,6 +2528,8 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@kurkle/color@0.3.4': {}
+
   '@lukeed/ms@2.0.2': {}
 
   '@nodelib/fs.scandir@2.1.5':
@@ -2891,6 +2912,10 @@ snapshots:
   camelcase-css@2.0.1: {}
 
   caniuse-lite@1.0.30001799: {}
+
+  chart.js@4.5.1:
+    dependencies:
+      '@kurkle/color': 0.3.4
 
   chokidar@3.6.0:
     dependencies:
@@ -3700,6 +3725,11 @@ snapshots:
       fsevents: 2.3.3
 
   vscode-uri@3.1.0: {}
+
+  vue-chartjs@5.3.3(chart.js@4.5.1)(vue@3.5.38(typescript@5.9.3)):
+    dependencies:
+      chart.js: 4.5.1
+      vue: 3.5.38(typescript@5.9.3)
 
   vue-demi@0.14.10(vue@3.5.38(typescript@5.9.3)):
     dependencies:

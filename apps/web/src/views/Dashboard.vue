@@ -5,10 +5,18 @@ import { RouterLink, useRouter } from 'vue-router';
 import { useThemeStore } from '@/stores/theme';
 import { useAddMovementStore } from '@/stores/addMovement';
 import { useAuthStore } from '@/stores/auth';
-import { useDashboardSummary } from '@/composables/queries';
+import {
+  useDashboardSummary,
+  useRecentTransactions,
+  useSummaryByMonth,
+} from '@/composables/queries';
 import { useMonth } from '@/composables/useMonth';
 import MonthSelector from '@/components/MonthSelector.vue';
 import AddMovementDialog from '@/components/AddMovementDialog.vue';
+import MonthlyTrendChart from '@/components/charts/MonthlyTrendChart.vue';
+import CategoryDonutChart from '@/components/charts/CategoryDonutChart.vue';
+import TopCategoriesBarChart from '@/components/charts/TopCategoriesBarChart.vue';
+import RecentTransactionsCard from '@/components/RecentTransactionsCard.vue';
 import { trpc } from '@/trpc/client';
 
 const themeStore = useThemeStore();
@@ -19,6 +27,10 @@ const month = useMonth();
 
 const filter = computed(() => ({ from: month.from.value, to: month.to.value }));
 const { data: summary, isLoading, isError } = useDashboardSummary(filter);
+const { data: trend } = useSummaryByMonth(6);
+const { data: recent, isLoading: recentLoading } = useRecentTransactions(6);
+
+const expenseBreakdown = computed(() => summary.value?.byCategory ?? []);
 
 async function logout() {
   try {
@@ -102,45 +114,40 @@ async function logout() {
         No s'han pogut carregar les dades. Comprova que l'API està en marxa.
       </div>
 
-      <!-- Categories -->
-      <Card v-if="!isLoading && !isError" padding="lg">
-        <header class="flex items-center justify-between mb-5">
-          <h3 class="font-semibold">Despeses per categoria</h3>
-          <span class="text-xs text-ink-subtle">
-            {{ summary?.transactionCount ?? 0 }} moviments
-          </span>
-        </header>
+      <template v-else>
+        <!-- Trend -->
+        <Card padding="lg">
+          <header class="flex items-center justify-between mb-5">
+            <h3 class="font-semibold">Tendència 6 mesos</h3>
+            <span class="text-xs text-ink-subtle">ingressos vs despeses</span>
+          </header>
+          <MonthlyTrendChart :data="trend" />
+        </Card>
 
-        <div v-if="(summary?.byCategory?.length ?? 0) === 0" class="text-sm text-ink-subtle py-8 text-center">
-          Cap despesa aquest mes.
-          <button class="text-accent hover:underline ml-1" @click="addMovement.open({ kind: 'expense' })">
-            Afegir-ne una
-          </button>
+        <!-- Categories: donut + bar -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card padding="lg">
+            <header class="flex items-center justify-between mb-5">
+              <h3 class="font-semibold">Distribució del mes</h3>
+              <span class="text-xs text-ink-subtle">per categoria</span>
+            </header>
+            <CategoryDonutChart :data="expenseBreakdown" />
+          </Card>
+
+          <Card padding="lg">
+            <header class="flex items-center justify-between mb-5">
+              <h3 class="font-semibold">Top categories</h3>
+              <span class="text-xs text-ink-subtle">
+                {{ summary?.transactionCount ?? 0 }} moviments
+              </span>
+            </header>
+            <TopCategoriesBarChart :data="expenseBreakdown" :limit="6" />
+          </Card>
         </div>
 
-        <div v-else class="space-y-3">
-          <div
-            v-for="cat in summary?.byCategory ?? []"
-            :key="cat.categoryId ?? 'uncategorized'"
-            class="flex items-center gap-4"
-          >
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between mb-1.5">
-                <span class="text-sm font-medium">{{ cat.name }}</span>
-                <span class="text-sm font-mono tabular-nums text-ink-muted">
-                  {{ (cat.cents / 100).toFixed(2) }} € · {{ cat.percent }}%
-                </span>
-              </div>
-              <div class="h-2 bg-surface-2 rounded-full overflow-hidden">
-                <div
-                  class="h-full rounded-full transition-all duration-500 ease-smooth"
-                  :style="{ width: `${Math.max(cat.percent * 2, 2)}%`, backgroundColor: cat.color }"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
+        <!-- Recent transactions -->
+        <RecentTransactionsCard :data="recent ?? []" :loading="recentLoading" />
+      </template>
     </div>
 
     <!-- Bottom nav (mobile) -->
