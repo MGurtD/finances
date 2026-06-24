@@ -1,5 +1,5 @@
 {
-  "name": "@finances/db",
+  "name": "@finances/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,13 +12,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "better-sqlite3": "^11.0.0",
-    "drizzle-orm": "^0.33.0"
+    "@finances/contracts": "workspace:*",
+    "@trpc/server": "^11.0.0",
+    "superjson": "^2.0.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.0",
-    "@types/node": "^22.0.0",
-    "drizzle-kit": "^0.24.0",
     "typescript": "^5.5.0"
   }
 }

@@ -11,3 +11,6 @@ data/
 .vite/
 .storybook/
 coverage/
+*.tsbuildinfo
+*.d.ts
+!packages/**/*.d.ts

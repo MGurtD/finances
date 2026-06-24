@@ -10,6 +10,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@finances/api": "workspace:*",
     "@finances/contracts": "workspace:*",
     "@finances/ui": "workspace:*",
     "@tanstack/vue-query": "^5.50.0",
