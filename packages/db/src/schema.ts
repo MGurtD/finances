@@ -13,6 +13,7 @@ export const accounts = sqliteTable('accounts', {
   color: text('color').notNull().default('#E85D2C'),
   icon: text('icon').notNull().default('wallet'),
   initialBalance: integer('initial_balance').notNull().default(0),
+  sortOrder: integer('sort_order').notNull().default(0),
   archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull().$defaultFn(now),
   updatedAt: text('updated_at').notNull().$defaultFn(now),
@@ -25,6 +26,7 @@ export const categories = sqliteTable('categories', {
   parentId: text('parent_id'),
   icon: text('icon').notNull().default('tag'),
   color: text('color').notNull().default('#8B7355'),
+  sortOrder: integer('sort_order').notNull().default(0),
   archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull().$defaultFn(now),
 });

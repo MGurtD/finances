@@ -1,14 +1,33 @@
-import { eq } from 'drizzle-orm';
+import { TRPCError } from '@trpc/server';
+import { eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@finances/db';
 import { accounts } from '@finances/db';
-import { AccountSchema, CreateAccountInput } from '@finances/contracts';
+import {
+  AccountSchema,
+  CreateAccountInput,
+  UpdateAccountInput,
+  ReorderInput,
+} from '@finances/contracts';
 import { router, protectedProcedure } from '../trpc/trpc.js';
+
+const IdInput = z.object({ id: z.string().uuid() });
 
 export const accountsRouter = router({
   list: protectedProcedure
     .output(z.array(AccountSchema))
-    .query(() => db.select().from(accounts).all()),
+    .query(() => db.select().from(accounts).orderBy(accounts.sortOrder).all()),
+
+  byId: protectedProcedure
+    .input(IdInput)
+    .output(AccountSchema)
+    .query(({ input }) => {
+      const row = db.select().from(accounts).where(eq(accounts.id, input.id)).get();
+      if (!row) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte no trobat' });
+      }
+      return row;
+    }),
 
   create: protectedProcedure
     .input(CreateAccountInput)
@@ -16,6 +35,12 @@ export const accountsRouter = router({
     .mutation(({ input }) => {
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
+      const maxRow = db
+        .select({ s: accounts.sortOrder })
+        .from(accounts)
+        .orderBy(accounts.sortOrder)
+        .all()
+        .at(-1);
       db.insert(accounts)
         .values({
           id,
@@ -25,6 +50,7 @@ export const accountsRouter = router({
           color: input.color,
           icon: input.icon,
           initialBalance: input.initialBalance,
+          sortOrder: (maxRow?.s ?? -1) + 1,
           archived: false,
           createdAt: now,
           updatedAt: now,
@@ -33,5 +59,74 @@ export const accountsRouter = router({
       const row = db.select().from(accounts).where(eq(accounts.id, id)).get();
       if (!row) throw new Error('Failed to create account');
       return row;
+    }),
+
+  update: protectedProcedure
+    .input(UpdateAccountInput)
+    .output(AccountSchema)
+    .mutation(({ input }) => {
+      const { id, ...patch } = input;
+      const existing = db.select().from(accounts).where(eq(accounts.id, id)).get();
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte no trobat' });
+      }
+      const now = new Date().toISOString();
+      db.update(accounts)
+        .set({ ...patch, updatedAt: now })
+        .where(eq(accounts.id, id))
+        .run();
+      const row = db.select().from(accounts).where(eq(accounts.id, id)).get();
+      if (!row) throw new Error('Failed to update account');
+      return row;
+    }),
+
+  archive: protectedProcedure
+    .input(IdInput)
+    .output(AccountSchema)
+    .mutation(({ input }) => {
+      const existing = db.select().from(accounts).where(eq(accounts.id, input.id)).get();
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte no trobat' });
+      }
+      const now = new Date().toISOString();
+      db.update(accounts)
+        .set({ archived: true, updatedAt: now })
+        .where(eq(accounts.id, input.id))
+        .run();
+      const row = db.select().from(accounts).where(eq(accounts.id, input.id)).get();
+      if (!row) throw new Error('Failed to archive account');
+      return row;
+    }),
+
+  reorder: protectedProcedure
+    .input(ReorderInput)
+    .output(z.object({ count: z.number().int() }))
+    .mutation(({ input }) => {
+      const now = new Date().toISOString();
+      const updates = input.ids.map((id, idx) =>
+        db
+          .update(accounts)
+          .set({ sortOrder: idx, updatedAt: now })
+          .where(eq(accounts.id, id))
+          .run(),
+      );
+      if (updates.length !== input.ids.length) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: "Alguns IDs no s'han trobat",
+        });
+      }
+      const matched = db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(inArray(accounts.id, input.ids))
+        .all();
+      if (matched.length !== input.ids.length) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Algun dels IDs no existeix',
+        });
+      }
+      return { count: input.ids.length };
     }),
 });

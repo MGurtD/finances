@@ -4,6 +4,9 @@ import { rawSqlite } from './client.js';
  * Idempotent schema bootstrap. Run on API startup.
  * drizzle-kit migrations are still supported via drizzle.config.ts for
  * future schema evolution — this covers first-run / clean installs.
+ *
+ * Additive columns are guarded with try/catch so existing installs upgrade
+ * in place without a separate migration script.
  */
 export function migrate(): void {
   rawSqlite.exec(`
@@ -15,6 +18,7 @@ export function migrate(): void {
       color TEXT NOT NULL DEFAULT '#E85D2C',
       icon TEXT NOT NULL DEFAULT 'wallet',
       initial_balance INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       archived INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -27,6 +31,7 @@ export function migrate(): void {
       parent_id TEXT,
       icon TEXT NOT NULL DEFAULT 'tag',
       color TEXT NOT NULL DEFAULT '#8B7355',
+      sort_order INTEGER NOT NULL DEFAULT 0,
       archived INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
@@ -49,4 +54,17 @@ export function migrate(): void {
     CREATE INDEX IF NOT EXISTS transactions_account_idx ON transactions(account_id);
     CREATE INDEX IF NOT EXISTS transactions_category_idx ON transactions(category_id);
   `);
+
+  for (const ddl of ADDITIVE_COLUMNS) {
+    try {
+      rawSqlite.exec(ddl);
+    } catch {
+      // column already exists or other non-fatal issue — safe to ignore on idempotent runs
+    }
+  }
 }
+
+const ADDITIVE_COLUMNS = [
+  'ALTER TABLE accounts ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE categories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0',
+];
