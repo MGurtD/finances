@@ -55,24 +55,27 @@ function isOver(): boolean {
         {{ node.name }}
       </button>
 
-      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <!-- Mobile: always visible. Desktop: hover-only.
+           Touch targets are p-2 (≥36px) + min-h-[44px] via the wrapper below
+           so fingers hit them reliably on small screens. -->
+      <div class="flex items-center sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
         <button
           type="button"
-          class="text-ink-subtle hover:text-ink p-1 text-xs"
+          class="text-ink-subtle hover:text-ink p-2 sm:p-1 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center text-xs"
           :aria-label="`Afegir fill a ${node.name}`"
           @click.stop="emit('add-child', node, node.kind)"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
         </button>
         <button
           type="button"
-          class="text-ink-subtle hover:text-negative p-1"
+          class="text-ink-subtle hover:text-negative p-2 sm:p-1 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center"
           :aria-label="`Arxivar ${node.name}`"
           @click.stop="emit('archive', node)"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
           </svg>
