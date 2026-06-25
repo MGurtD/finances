@@ -174,7 +174,7 @@ export const budgetsRouter = router({
           budgetId: globalBudget.id,
           categoryId: null,
           categoryName: 'Global',
-          categoryColor: '#E85D2C',
+          categoryColor: '#6366F1',
           month: input.month,
           budgetCents: globalBudget.amountCents,
           spentCents: totalSpent,

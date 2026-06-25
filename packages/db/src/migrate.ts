@@ -15,7 +15,7 @@ export function migrate(): void {
       name TEXT NOT NULL,
       type TEXT NOT NULL,
       currency TEXT NOT NULL DEFAULT 'EUR',
-      color TEXT NOT NULL DEFAULT '#E85D2C',
+      color TEXT NOT NULL DEFAULT '#6366F1',
       icon TEXT NOT NULL DEFAULT 'wallet',
       initial_balance INTEGER NOT NULL DEFAULT 0,
       sort_order INTEGER NOT NULL DEFAULT 0,

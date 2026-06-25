@@ -13,7 +13,7 @@ export const AccountSchema = z.object({
   name: z.string().min(1).max(50),
   type: AccountTypeSchema,
   currency: z.literal('EUR').default('EUR'),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default('#E85D2C'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default('#6366F1'),
   icon: z.string().max(30).default('wallet'),
   initialBalance: z.number().int(), // in cents
   sortOrder: z.number().int().default(0),

@@ -10,7 +10,7 @@ export const accounts = sqliteTable('accounts', {
     enum: ['checking', 'savings', 'credit_card', 'cash', 'investment'],
   }).notNull(),
   currency: text('currency').$type<'EUR'>().notNull().default('EUR'),
-  color: text('color').notNull().default('#E85D2C'),
+  color: text('color').notNull().default('#6366F1'),
   icon: text('icon').notNull().default('wallet'),
   initialBalance: integer('initial_balance').notNull().default(0),
   sortOrder: integer('sort_order').notNull().default(0),

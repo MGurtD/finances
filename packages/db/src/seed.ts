@@ -8,7 +8,7 @@ interface DefaultCategory {
 }
 
 const DEFAULT_CATEGORIES: DefaultCategory[] = [
-  { name: 'Habitatge', kind: 'expense', color: '#e85d2c' },
+  { name: 'Habitatge', kind: 'expense', color: '#6366f1' },
   { name: 'Supermercat', kind: 'expense', color: '#2e7d32' },
   { name: 'Oci', kind: 'expense', color: '#1976d2' },
   { name: 'Subscripcions', kind: 'expense', color: '#7b1fa2' },
@@ -18,7 +18,7 @@ const DEFAULT_CATEGORIES: DefaultCategory[] = [
 const DEFAULT_ACCOUNT = {
   name: 'Compte corrent',
   type: 'checking' as const,
-  color: '#E85D2C',
+  color: '#6366F1',
   icon: 'wallet',
   initialBalance: 0,
 };

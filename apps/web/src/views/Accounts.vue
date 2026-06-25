@@ -39,7 +39,7 @@ const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'investment', label: 'Inversió' },
 ];
 
-const COLORS = ['#E85D2C', '#2E7D32', '#1976D2', '#7B1FA2', '#ED6C02', '#5D4037'];
+const COLORS = ['#6366F1', '#2E7D32', '#1976D2', '#7B1FA2', '#ED6C02', '#5D4037'];
 
 const dialogOpen = ref(false);
 const editing = ref<Account | null>(null);

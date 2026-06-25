@@ -9,6 +9,7 @@ tmp-*.log
 data/
 *.db
 *.db-journal
+:memory:*
 .vite/
 .storybook/
 coverage/
