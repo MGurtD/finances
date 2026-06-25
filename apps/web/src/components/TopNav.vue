@@ -10,6 +10,8 @@ const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 
+defineEmits<{ 'open-palette': [] }>();
+
 const links = [
   { to: { name: 'dashboard' }, label: 'Inici', key: 'dashboard' },
   { to: { name: 'moviments' }, label: 'Moviments', key: 'moviments' },
@@ -84,6 +86,3 @@ async function logout() {
   </header>
 </template>
 
-<script lang="ts">
-defineEmits<{ 'open-palette': [] }>();
-</script>
