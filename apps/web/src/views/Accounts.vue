@@ -7,6 +7,7 @@ import {
   useAccountBalances,
   useArchiveAccount,
   useCreateAccount,
+  useDeleteAccount,
   useUpdateAccount,
 } from '@/composables/queries';
 import Modal from '@/components/Modal.vue';
@@ -16,6 +17,7 @@ const { data: balances } = useAccountBalances();
 const create = useCreateAccount();
 const update = useUpdateAccount();
 const archive = useArchiveAccount();
+const remove = useDeleteAccount();
 
 const balanceMap = computed(() => {
   const m = new Map<string, number>();
@@ -93,6 +95,16 @@ async function confirmArchive(acc: Account) {
   }
 }
 
+async function confirmDelete(acc: Account) {
+  if (
+    window.confirm(
+      `Eliminar el compte "${acc.name}"? Aquesta acció esborra el compte i totes les transaccions associades. No es pot desfer.`,
+    )
+  ) {
+    await remove.mutateAsync(acc.id);
+  }
+}
+
 function typeLabel(t: AccountType): string {
   return ACCOUNT_TYPES.find((x) => x.value === t)?.label ?? t;
 }
@@ -147,9 +159,9 @@ function typeLabel(t: AccountType): string {
           <button
             type="button"
             class="text-ink-subtle hover:text-negative p-1 shrink-0"
-            :aria-label="`Arxivar ${acc.name}`"
-            :disabled="archive.isPending.value"
-            @click="confirmArchive(acc)"
+            :aria-label="`Eliminar ${acc.name}`"
+            :disabled="remove.isPending.value"
+            @click="confirmDelete(acc)"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6" />

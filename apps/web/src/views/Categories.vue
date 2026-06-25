@@ -9,6 +9,7 @@ import {
   useUpdateCategory,
 } from '@/composables/queries';
 import Modal from '@/components/Modal.vue';
+import CategoryTreeNodeRow from '@/components/CategoryTreeNodeRow.vue';
 
 const { data: incomeTree } = useCategoryTree('income');
 const { data: expenseTree } = useCategoryTree('expense');

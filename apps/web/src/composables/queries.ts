@@ -87,6 +87,19 @@ export function useArchiveAccount() {
   });
 }
 
+export function useDeleteAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => trpc.accounts.delete.mutate({ id }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['accounts'] });
+      void qc.invalidateQueries({ queryKey: ['accountBalances'] });
+      void qc.invalidateQueries({ queryKey: ['transactions'] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
 export function useCategories() {
   return useQuery<Category[]>({
     queryKey: financeKeys.categories(),

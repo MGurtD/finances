@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '@finances/db';
+import { db, rawSqlite } from '@finances/db';
 import { accounts, transactions } from '@finances/db';
 import {
   AccountSchema,
@@ -15,8 +15,18 @@ const IdInput = z.object({ id: z.string().uuid() });
 
 export const accountsRouter = router({
   list: protectedProcedure
+    .input(z.object({ includeArchived: z.boolean().default(false) }).optional())
     .output(z.array(AccountSchema))
-    .query(() => db.select().from(accounts).orderBy(accounts.sortOrder).all()),
+    .query(({ input }) => {
+      const includeArchived = input?.includeArchived ?? false;
+      const where = includeArchived ? undefined : eq(accounts.archived, false);
+      return db
+        .select()
+        .from(accounts)
+        .where(where)
+        .orderBy(accounts.sortOrder)
+        .all();
+    }),
 
   byId: protectedProcedure
     .input(IdInput)
@@ -98,6 +108,47 @@ export const accountsRouter = router({
       return row;
     }),
 
+  /**
+   * Hard-delete an account. Cascades to its transactions (both legs) so we
+   * don't leave orphan rows behind the FK in `transactions.account_id`. Wrapped
+   * in a single better-sqlite3 transaction for atomicity.
+   *
+   * For accounts involved in a transfer (transferAccountId), we also remove
+   * the counter-leg transaction so the books stay consistent.
+   */
+  delete: protectedProcedure
+    .input(IdInput)
+    .output(z.object({ id: z.string().uuid(), deletedTransactions: z.number().int() }))
+    .mutation(({ input }) => {
+      const existing = db.select().from(accounts).where(eq(accounts.id, input.id)).get();
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Compte no trobat' });
+      }
+      const txCount = db
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(eq(transactions.accountId, input.id))
+        .all();
+      const counterLegs = db
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(eq(transactions.transferAccountId, input.id))
+        .all();
+
+      const deleteAll = rawSqlite.transaction(() => {
+        if (txCount.length > 0) {
+          db.delete(transactions).where(eq(transactions.accountId, input.id)).run();
+        }
+        if (counterLegs.length > 0) {
+          db.delete(transactions).where(eq(transactions.transferAccountId, input.id)).run();
+        }
+        db.delete(accounts).where(eq(accounts.id, input.id)).run();
+      });
+      deleteAll();
+
+      return { id: input.id, deletedTransactions: txCount.length + counterLegs.length };
+    }),
+
   reorder: protectedProcedure
     .input(ReorderInput)
     .output(z.object({ count: z.number().int() }))
@@ -138,7 +189,15 @@ export const accountsRouter = router({
   balances: protectedProcedure
     .output(z.array(z.object({ accountId: z.string().uuid(), balanceCents: z.number().int() })))
     .query(() => {
-      const accs = db.select().from(accounts).all();
+      // Exclude archived accounts — they should not contribute to the running
+      // total on the dashboard / accounts list. (See Bug 1: archive in the UI
+      // used to be invisible because list ignored `archived` and the running
+      // total kept counting them.)
+      const accs = db
+        .select()
+        .from(accounts)
+        .where(eq(accounts.archived, false))
+        .all();
       const txRows = db
         .select({
           accountId: transactions.accountId,

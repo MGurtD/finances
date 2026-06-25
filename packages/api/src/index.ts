@@ -86,6 +86,7 @@ const authRouter = router({
 
 const accountsRouter = router({
   list: protectedProcedure
+    .input(z.object({ includeArchived: z.boolean().default(false) }).optional())
     .output(z.array(AccountSchema))
     .query(() => [] as unknown as z.infer<typeof AccountSchema>[]),
   byId: protectedProcedure
@@ -104,6 +105,10 @@ const accountsRouter = router({
     .input(IdInput)
     .output(AccountSchema)
     .mutation(() => ({} as unknown as z.infer<typeof AccountSchema>)),
+  delete: protectedProcedure
+    .input(IdInput)
+    .output(z.object({ id: z.string().uuid(), deletedTransactions: z.number().int() }))
+    .mutation(() => ({ id: '', deletedTransactions: 0 })),
   reorder: protectedProcedure
     .input(ReorderInput)
     .output(z.object({ count: z.number().int() }))

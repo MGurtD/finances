@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import type { CategoryTreeNode } from '@finances/contracts';
+// CategoryTreeNodeRow is auto-resolved by plugin-vue (recursive child render).
+// Do NOT add an explicit `import CategoryTreeNodeRow from './CategoryTreeNodeRow.vue'`
+// here — it creates a module self-cycle that prevents the tree from rendering.
 
 const props = defineProps<{
   node: CategoryTreeNode;
