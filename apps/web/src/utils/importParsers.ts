@@ -15,6 +15,20 @@ const DESC_KEYS = ['description', 'descripcion', 'descripción', 'concepto', 'de
 const AMOUNT_KEYS = ['amount', 'importe', 'quantitat', 'valor'];
 const DEBIT_KEYS = ['debit', 'cargo', 'deure', 'debit_amount', 'habe'];
 const CREDIT_KEYS = ['credit', 'abono', 'haver', 'credit_amount'];
+const BALANCE_KEYS = ['saldo', 'balance', 'saldoactual', 'saldo_final', 'saldo_final_disponible'];
+
+// Heurística: descripcions positives → ingressos habituals a extractes espanyols.
+const INCOME_HINTS = [
+  /\bn[oó]mina\b/i,
+  /\bsou\b/i,
+  /\btransfer(encia|\.)\s+rebuda/i,
+  /\btransf(erencia|\.)\s+recibida/i,
+  /\babono\b/i,
+  /\bdevoluci(o|ó)n\b/i,
+  /\breembolso\b/i,
+  /\bintereses?\b/i,
+  /\bdiv(idendos?|idend)\b/i,
+];
 
 function normaliseKey(k: string): string {
   return k.toLowerCase().trim().replace(/\s+/g, '');
@@ -29,22 +43,44 @@ function findKey(keys: string[], candidates: string[]): string | undefined {
   return undefined;
 }
 
-function parseAmount(raw: string): number {
-  // Strip currency symbols and thousands separators; keep the last dot/comma as decimal.
-  const cleaned = raw.replace(/[^\d.,\-]/g, '').trim();
+/**
+ * Parse a money string into signed cents.
+ *
+ * - Strips currency symbols / thousands separators
+ * - Keeps the rightmost of `,` / `.` as the decimal separator
+ * - Preserves sign: `-18.03` → -1803, `+18.03` → 1803, `18.03` → 1803
+ * - Returns 0 for empty / unparseable input (never NaN)
+ */
+export function parseAmountCents(raw: string | undefined | null): number {
+  if (raw == null) return 0;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return 0;
+  // Detect explicit sign
+  let sign = 1;
+  let body = trimmed;
+  if (body.startsWith('-') || body.startsWith('+')) {
+    if (body.startsWith('-')) sign = -1;
+    body = body.slice(1);
+  }
+  // Strip everything that isn't a digit, decimal point, comma, or stray minus
+  const cleaned = body.replace(/[^\d.,]/g, '').trim();
   if (!cleaned) return 0;
-  // If both . and , present assume the rightmost is decimal separator.
   const lastComma = cleaned.lastIndexOf(',');
   const lastDot = cleaned.lastIndexOf('.');
   let normalised = cleaned;
   if (lastComma > lastDot) {
+    // European: 1.234,56 → 1234.56
     normalised = cleaned.replace(/\./g, '').replace(',', '.');
-  } else {
+  } else if (lastDot > lastComma) {
+    // US: 1,234.56 → 1234.56
     normalised = cleaned.replace(/,/g, '');
+  } else {
+    // No separators or only one kind — no-op
+    normalised = cleaned;
   }
   const n = Number(normalised);
   if (!Number.isFinite(n)) return 0;
-  return Math.round(Math.abs(n) * 100);
+  return Math.round(n * 100) * sign;
 }
 
 function parseDate(raw: string): string | null {
@@ -73,6 +109,56 @@ export function detectFormat(filename: string, content: string): ImportFormat {
   return 'csv';
 }
 
+/**
+ * Decide if `desc` looks like an income (payroll, transfer received, refund…).
+ * Used as last-resort heuristic when the bank gives an unsigned Amount column.
+ */
+function looksLikeIncome(desc: string): boolean {
+  return INCOME_HINTS.some((re) => re.test(desc));
+}
+
+/**
+ * Derive the transaction kind using the most reliable signal available.
+ *
+ * Priority:
+ *  1. Previous-row balance delta (very reliable for any bank that exports Saldo)
+ *  2. Explicit sign on the Amount field
+ *  3. Debit/Credit columns
+ *  4. Description heuristics (weakest signal — only used as tie-breaker)
+ */
+function classify(
+  rawAmount: string,
+  parsedCents: number,
+  description: string,
+  debitKey: string | undefined,
+  creditKey: string | undefined,
+  row: Record<string, string>,
+  prevBalanceCents: number | null,
+  currentBalanceCents: number | null,
+): TransactionKind {
+  // (1) Balance delta — strongest signal.
+  if (prevBalanceCents !== null && currentBalanceCents !== null) {
+    return currentBalanceCents > prevBalanceCents ? 'income' : 'expense';
+  }
+  // (2) Debit/Credit columns — explicit.
+  if (debitKey && creditKey) {
+    const debit = parseAmountCents(row[debitKey]);
+    const credit = parseAmountCents(row[creditKey]);
+    if (debit > 0 && credit === 0) return 'expense';
+    if (credit > 0 && debit === 0) return 'income';
+    // Fall through if both zero or ambiguous.
+  }
+  // (3) Explicit sign on Amount.
+  const raw = (rawAmount ?? '').toString().trim();
+  if (raw.startsWith('-')) return 'expense';
+  if (raw.startsWith('+')) return 'income';
+  if (parsedCents < 0) return 'expense';
+  // (4) Unsigned positive — could be either. Default to expense
+  // (conservative: user reviews in the preview screen before committing).
+  // But if the description strongly hints income, trust it.
+  return looksLikeIncome(description) ? 'income' : 'expense';
+}
+
 export function parseCsv(text: string): ParsedRow[] {
   const result = Papa.parse<Record<string, string>>(text, {
     header: true,
@@ -88,46 +174,51 @@ export function parseCsv(text: string): ParsedRow[] {
   const amountKey = findKey(fields, AMOUNT_KEYS);
   const debitKey = findKey(fields, DEBIT_KEYS);
   const creditKey = findKey(fields, CREDIT_KEYS);
+  const balanceKey = findKey(fields, BALANCE_KEYS);
 
   if (!dateKey || !descKey) return [];
   if (!amountKey && !debitKey && !creditKey) return [];
 
   const out: ParsedRow[] = [];
+  let prevBalanceCents: number | null = null;
+
   for (const row of result.data) {
     const date = parseDate(row[dateKey] ?? '');
     const description = (row[descKey] ?? '').trim();
     if (!date || !description) continue;
 
     let cents = 0;
-    let kind: TransactionKind = 'expense';
     if (amountKey) {
-      cents = parseAmount(row[amountKey] ?? '');
-      // If amount is signed and negative → expense; positive → income. If no
-      // sign info, default to expense.
-      const raw = (row[amountKey] ?? '').trim();
-      if (raw.startsWith('-')) {
-        kind = 'expense';
-      } else if (raw.startsWith('+')) {
-        kind = 'income';
-      } else {
-        kind = cents === 0 ? 'expense' : 'expense';
-      }
-    } else {
-      const debit = parseAmount(row[debitKey!] ?? '');
-      const credit = parseAmount(row[creditKey!] ?? '');
-      if (debit > 0) {
-        cents = debit;
-        kind = 'expense';
-      } else if (credit > 0) {
-        cents = credit;
-        kind = 'income';
-      } else {
-        continue;
-      }
+      cents = parseAmountCents(row[amountKey]);
+    } else if (debitKey && creditKey) {
+      const debit = parseAmountCents(row[debitKey]);
+      const credit = parseAmountCents(row[creditKey]);
+      cents = debit > 0 ? debit : credit;
     }
 
     if (cents === 0) continue;
+
+    // Read balance if available — used for sign derivation.
+    const currentBalanceCents = balanceKey ? parseAmountCents(row[balanceKey]) : null;
+
+    const kind = classify(
+      amountKey ? (row[amountKey] ?? '') : '',
+      cents,
+      description,
+      debitKey,
+      creditKey,
+      row,
+      prevBalanceCents,
+      currentBalanceCents,
+    );
+
     out.push({ date, description, amountCents: cents, kind });
+
+    // Update running balance — use the parsed cents (absolute value) so a
+    // previous-row delta of 0 won't mislead the next row.
+    if (currentBalanceCents !== null) {
+      prevBalanceCents = currentBalanceCents;
+    }
   }
   return out;
 }

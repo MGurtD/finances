@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 import { fileURLToPath, URL } from 'node:url';
 
@@ -15,5 +15,9 @@ export default defineConfig({
       '/trpc': 'http://localhost:3001',
       '/health': 'http://localhost:3001',
     },
+  },
+  test: {
+    environment: 'node',
+    include: ['tests/**/*.test.ts'],
   },
 });
