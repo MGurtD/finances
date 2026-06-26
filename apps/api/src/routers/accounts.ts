@@ -213,7 +213,9 @@ export const accountsRouter = router({
 
       return accs.map((a) => {
         const totals = txMap.get(a.id) ?? { income: 0, expense: 0 };
-        const balanceCents = a.initialBalance + totals.income - totals.expense;
+        // Amounts are signed cents (income > 0, expense < 0). Balance is the
+        // signed sum of all movements added to the opening balance.
+        const balanceCents = a.initialBalance + totals.income + totals.expense;
         return { accountId: a.id, balanceCents };
       });
     }),

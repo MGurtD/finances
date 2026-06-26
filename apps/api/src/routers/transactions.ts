@@ -285,11 +285,13 @@ export const transactionsRouter = router({
         const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - i, 1));
         const key = monthKey(d);
         const totals = byMonth.get(key) ?? { incomeCents: 0, expenseCents: 0 };
+        // Amounts are signed cents (expense < 0, income > 0). Normalise to
+        // absolute for display and compute net from the raw signs.
         out.push({
           month: key,
-          incomeCents: totals.incomeCents,
-          expenseCents: totals.expenseCents,
-          netCents: totals.incomeCents - totals.expenseCents,
+          incomeCents: Math.abs(totals.incomeCents),
+          expenseCents: Math.abs(totals.expenseCents),
+          netCents: totals.incomeCents + totals.expenseCents,
         });
       }
       return out;
@@ -325,7 +327,7 @@ export const transactionsRouter = router({
         categoryId: r.categoryId,
         name: r.name ?? 'Sense categoria',
         color: r.color ?? '#8B7355',
-        cents: r.cents,
+        cents: Math.abs(r.cents),
         count: r.count,
       }));
     }),

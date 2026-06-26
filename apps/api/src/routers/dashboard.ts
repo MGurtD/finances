@@ -32,6 +32,11 @@ export const dashboardRouter = router({
       const expenseCents = totalsRow?.expense ?? 0;
       const transactionCount = totalsRow?.count ?? 0;
 
+      // Normalise to absolute for display — income/expense amounts are signed
+      // in the DB (income > 0, expense < 0), but the UI expects positives.
+      const incomeAbs = Math.abs(incomeCents);
+      const expenseAbs = Math.abs(expenseCents);
+
       const categoryRows = db
         .select({
           categoryId: transactions.categoryId,
@@ -45,14 +50,14 @@ export const dashboardRouter = router({
         .groupBy(transactions.categoryId, categories.name, categories.color)
         .all();
 
-      const totalForPct = expenseCents || 1;
+      const totalForPct = expenseAbs || 1;
       const byCategory = categoryRows
         .map((row) => ({
           categoryId: row.categoryId,
           name: row.name ?? 'Sense categoria',
           color: row.color ?? '#8B7355',
-          cents: row.cents,
-          percent: Math.round((row.cents / totalForPct) * 100),
+          cents: Math.abs(row.cents),
+          percent: Math.round((Math.abs(row.cents) / totalForPct) * 100),
         }))
         .sort((a, b) => b.cents - a.cents);
 
@@ -62,9 +67,9 @@ export const dashboardRouter = router({
       return {
         from: input.from,
         to: input.to,
-        incomeCents,
-        expenseCents,
-        netSavingsCents: incomeCents - expenseCents,
+        incomeCents: incomeAbs,
+        expenseCents: expenseAbs,
+        netSavingsCents: incomeAbs - expenseAbs,
         transactionCount,
         byCategory,
       };

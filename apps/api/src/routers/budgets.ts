@@ -151,7 +151,9 @@ export const budgetsRouter = router({
 
       const spentMap = new Map<string, number>();
       for (const r of spentRows) {
-        if (r.categoryId) spentMap.set(r.categoryId, r.cents);
+        // Amounts are signed cents — expenses are negative. Normalise to
+        // absolute before reporting "spent" to the UI.
+        if (r.categoryId) spentMap.set(r.categoryId, Math.abs(r.cents));
       }
 
       const budgetByCat = new Map<string, (typeof budgetRows)[number]>();

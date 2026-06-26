@@ -53,12 +53,15 @@ watch(kind, () => {
 
 async function submit() {
   if (!isValid.value || !accountId.value) return;
+  // Apply sign by kind: positive amounts stay as incomes; expenses go negative
+  // so the DB stays semantically signed (expense < 0, income > 0).
+  const signedAmount = kind.value === 'expense' ? -amountCents.value : amountCents.value;
   try {
     await create.mutateAsync({
       accountId: accountId.value,
       categoryId: categoryId.value,
       kind: kind.value,
-      amount: amountCents.value,
+      amount: signedAmount,
       description: description.value,
       notes: '',
       date: date.value,

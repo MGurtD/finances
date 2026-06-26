@@ -2,12 +2,44 @@ import { z } from 'zod';
 
 export const TransactionKindSchema = z.enum(['income', 'expense', 'transfer']);
 
+/**
+ * Money convention used everywhere in this schema:
+ *   - All amounts are signed **cents** (integers).
+ *   - `kind === 'income'`  → `amount > 0`
+ *   - `kind === 'expense'` → `amount < 0`
+ *   - `kind === 'transfer'` → `amount` matches the signed direction of the transfer
+ *   - `amount === 0` is never accepted.
+ *
+ * Use `signedMoneyFields` to extend any object with this rule.
+ */
+const amountRefine = z.number().int().refine((n) => n !== 0, {
+  message: 'amount must be non-zero',
+});
+
+const signMatchesKind = <T extends { amount: number; kind: 'income' | 'expense' | 'transfer' }>(
+  r: T,
+): boolean => {
+  if (r.kind === 'transfer') return true; // transfers carry their own direction
+  if (r.kind === 'income') return r.amount > 0;
+  return r.amount < 0; // expense
+};
+
+export function signedMoneyFields() {
+  return z.object({
+    amount: amountRefine,
+    kind: TransactionKindSchema,
+  }).refine(signMatchesKind, {
+    message: 'amount sign must match kind (income>0, expense<0)',
+    path: ['kind'],
+  });
+}
+
 export const TransactionSchema = z.object({
   id: z.string().uuid(),
   accountId: z.string().uuid(),
   categoryId: z.string().uuid().nullable(),
   kind: TransactionKindSchema,
-  amount: z.number().int(), // in cents, positive
+  amount: z.number().int(), // signed cents (income>0, expense<0)
   description: z.string().max(200).default(''),
   notes: z.string().max(1000).default(''),
   date: z.string(), // ISO date YYYY-MM-DD
@@ -17,16 +49,21 @@ export const TransactionSchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
-export const CreateTransactionInput = TransactionSchema.pick({
-  accountId: true,
-  categoryId: true,
-  kind: true,
-  amount: true,
-  description: true,
-  notes: true,
-  date: true,
-  transferAccountId: true,
-});
+export const CreateTransactionInput = z
+  .object({
+    accountId: z.string().uuid(),
+    categoryId: z.string().uuid().nullable().optional(),
+    kind: TransactionKindSchema,
+    amount: z.number().int(),
+    description: z.string().max(200).optional(),
+    notes: z.string().max(1000).optional(),
+    date: z.string(),
+    transferAccountId: z.string().uuid().nullable().optional(),
+  })
+  .refine(signMatchesKind, {
+    message: 'amount sign must match kind (income>0, expense<0)',
+    path: ['kind'],
+  });
 
 export const UpdateTransactionInput = z.object({
   id: z.string().uuid(),
@@ -51,16 +88,21 @@ export const ListTransactionsInput = z.object({
   offset: z.number().int().min(0).default(0),
 });
 
-export const ImportTransactionRow = z.object({
-  accountId: z.string().uuid(),
-  categoryId: z.string().uuid().nullable().optional(),
-  kind: TransactionKindSchema,
-  amount: z.number().int().positive(),
-  description: z.string().max(200).optional(),
-  notes: z.string().max(1000).optional(),
-  date: z.string(),
-  transferAccountId: z.string().uuid().nullable().optional(),
-});
+export const ImportTransactionRow = z
+  .object({
+    accountId: z.string().uuid(),
+    categoryId: z.string().uuid().nullable().optional(),
+    kind: TransactionKindSchema,
+    amount: z.number().int(),
+    description: z.string().max(200).optional(),
+    notes: z.string().max(1000).optional(),
+    date: z.string(),
+    transferAccountId: z.string().uuid().nullable().optional(),
+  })
+  .refine(signMatchesKind, {
+    message: 'amount sign must match kind (income>0, expense<0)',
+    path: ['kind'],
+  });
 
 export const BulkCreateInput = z.object({
   rows: z.array(ImportTransactionRow).min(1).max(1000),
