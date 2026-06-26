@@ -8,13 +8,18 @@ import {
   useTransactionsList,
 } from '@/composables/queries';
 import { parseFile, type ParsedRow } from '@/utils/importParsers';
-import { autoCategorize } from '@/utils/autoCategorize';
+import { autoCategorize, type Categorisation } from '@/utils/autoCategorize';
+import { recordLearnedRule } from '@/utils/autoCategorize/learnedRules';
 
 type Step = 'upload' | 'preview' | 'done';
 
 interface EditableRow extends ParsedRow {
   id: string;
+  /** User-confirmed category id. Starts as the auto-categorise suggestion. */
   categoryId: string | null;
+  /** Confidence of the auto-categorise suggestion at the time it was set.
+   *  Used to visually flag low/medium confidence rows in the preview. */
+  suggestion: Categorisation;
 }
 
 let counter = 0;
@@ -83,7 +88,26 @@ const counts = computed(() => ({
   withCategory: rows.value.filter((r) => r.categoryId !== null).length,
   duplicates: duplicateCount.value,
   new: newRowCount.value,
+  lowConfidence: rows.value.filter(
+    (r) => r.suggestion.confidence === 'low' || r.suggestion.confidence === 'medium',
+  ).length,
 }));
+
+/**
+ * Update the category for one row in the preview. Side effect: records a
+ * learned rule in localStorage so the next time the same description comes
+ * through the importer it's auto-categorised without user intervention.
+ */
+function setRowCategory(rowId: string, newCategoryId: string | null) {
+  const row = rows.value.find((r) => r.id === rowId);
+  if (!row) return;
+  row.categoryId = newCategoryId;
+  // Only record when the user actively chose a category — null means
+  // "skip", which shouldn't pollute the learned-rule store.
+  if (newCategoryId) {
+    recordLearnedRule(row.description, newCategoryId);
+  }
+}
 
 function onDrop(e: DragEvent) {
   dragOver.value = false;
@@ -109,11 +133,19 @@ async function loadFile(file: File) {
       errorMsg.value = 'No hem pogut extreure cap fila. Comprova el format.';
       return;
     }
-    rows.value = parsed.rows.map((r) => ({
-      ...r,
-      id: nextId(),
-      categoryId: autoCategorize(r.description, categories.value ?? []),
-    }));
+    rows.value = parsed.rows.map((r) => {
+      const suggestion = autoCategorize(
+        r.description,
+        categories.value ?? [],
+        r.kind,
+      );
+      return {
+        ...r,
+        id: nextId(),
+        categoryId: suggestion.categoryId,
+        suggestion,
+      };
+    });
     if (!selectedAccountId.value && accounts.value?.[0]) {
       selectedAccountId.value = accounts.value[0].id;
     }
@@ -245,8 +277,18 @@ const lastResult = computed(() => {
                 </td>
                 <td class="px-3 py-2">
                   <select
-                    v-model="r.categoryId"
-                    class="w-full h-8 px-2 rounded bg-surface border border-border focus:outline-none focus:border-accent text-xs"
+                    :value="r.categoryId"
+                    class="w-full h-8 px-2 rounded bg-surface border focus:outline-none focus:border-accent text-xs"
+                    :class="
+                      r.categoryId === null
+                        ? 'border-warning'
+                        : r.suggestion.confidence === 'low'
+                          ? 'border-warning/70'
+                          : r.suggestion.confidence === 'medium'
+                            ? 'border-border'
+                            : 'border-border'
+                    "
+                    @change="(e) => setRowCategory(r.id, ((e.target as HTMLSelectElement).value || null))"
                   >
                     <option :value="null">— Sense categoria —</option>
                     <option
@@ -257,6 +299,12 @@ const lastResult = computed(() => {
                       {{ c.name }}
                     </option>
                   </select>
+                  <p
+                    v-if="r.suggestion.confidence === 'low'"
+                    class="text-[10px] text-warning mt-1"
+                  >
+                    Suggeriment dèbil — revisa
+                  </p>
                 </td>
               </tr>
             </tbody>
