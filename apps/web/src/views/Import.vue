@@ -34,6 +34,8 @@ const { data: accounts } = useAccounts();
 const { data: categories } = useCategories();
 const bulk = useBulkCreateTransactions();
 
+const rows = ref<EditableRow[]>([]);
+
 // Probe existing transactions to tell the user how many rows are duplicates
 // before they commit. Limited to the file's date range + selected account so
 // the query stays cheap.
@@ -75,8 +77,6 @@ const duplicateCount = computed(() => {
 const newRowCount = computed(
   () => Math.max(0, rows.value.length - duplicateCount.value),
 );
-
-const rows = ref<EditableRow[]>([]);
 
 const counts = computed(() => ({
   total: rows.value.length,
