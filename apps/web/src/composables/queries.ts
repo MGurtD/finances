@@ -20,6 +20,7 @@ import type {
   Transaction,
   UpdateAccountInput,
   UpdateCategoryInput,
+  UpdateTransactionInput,
   UpsertBudgetInput,
 } from '@finances/contracts';
 
@@ -258,6 +259,25 @@ export function useDeleteTransaction() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['transactions'] });
       void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+/**
+ * Update an existing transaction. Used by the inline category editor in
+ * the Moviments view, by the bulk re-categorise action, and by the
+ * delete-account cascade. Invalidates all dependent queries so the
+ * dashboard / budgets / lists refresh in one tick.
+ */
+export function useUpdateTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateTransactionInput) =>
+      trpc.transactions.update.mutate(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['transactions'] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+      void qc.invalidateQueries({ queryKey: ['budgets'] });
     },
   });
 }
