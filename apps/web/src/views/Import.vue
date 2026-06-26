@@ -5,6 +5,7 @@ import {
   useAccounts,
   useBulkCreateTransactions,
   useCategories,
+  useTransactionsList,
 } from '@/composables/queries';
 import { parseFile, type ParsedRow } from '@/utils/importParsers';
 import { autoCategorize } from '@/utils/autoCategorize';
@@ -33,11 +34,55 @@ const { data: accounts } = useAccounts();
 const { data: categories } = useCategories();
 const bulk = useBulkCreateTransactions();
 
+// Probe existing transactions to tell the user how many rows are duplicates
+// before they commit. Limited to the file's date range + selected account so
+// the query stays cheap.
+const probeRange = computed(() => {
+  if (rows.value.length === 0) {
+    // No file loaded yet → probe a wide range so the query stays valid but
+    // duplicate detection won't kick in (rows is empty).
+    return { from: '1970-01-01', to: '2999-12-31', accountId: selectedAccountId.value ?? undefined };
+  }
+  const dates = rows.value.map((r) => r.date).sort();
+  return {
+    from: dates[0]!,
+    to: dates[dates.length - 1]!,
+    accountId: selectedAccountId.value ?? undefined,
+  };
+});
+const { data: probeTransactions } = useTransactionsList(probeRange);
+
+const duplicateCount = computed(() => {
+  if (!probeTransactions.value || rows.value.length === 0) return 0;
+  // Build a set of existing fingerprints (account|YYYY-MM-DD|signed cents|description)
+  // to match against the rows the user is about to import.
+  const existing = new Set<string>();
+  for (const tx of probeTransactions.value) {
+    const amt = tx.kind === 'expense' ? -Math.abs(tx.amount) : Math.abs(tx.amount);
+    existing.add(
+      `${tx.accountId}|${tx.date}|${amt}|${(tx.description ?? '').trim()}`,
+    );
+  }
+  let n = 0;
+  for (const r of rows.value) {
+    const amt = r.kind === 'expense' ? -Math.abs(r.amountCents) : Math.abs(r.amountCents);
+    const key = `${selectedAccountId.value}|${r.date}|${amt}|${r.description.trim()}`;
+    if (existing.has(key)) n += 1;
+  }
+  return n;
+});
+
+const newRowCount = computed(
+  () => Math.max(0, rows.value.length - duplicateCount.value),
+);
+
 const rows = ref<EditableRow[]>([]);
 
 const counts = computed(() => ({
   total: rows.value.length,
   withCategory: rows.value.filter((r) => r.categoryId !== null).length,
+  duplicates: duplicateCount.value,
+  new: newRowCount.value,
 }));
 
 function onDrop(e: DragEvent) {
@@ -93,7 +138,7 @@ async function commitImport() {
       accountId: selectedAccountId.value!,
       categoryId: r.categoryId,
       kind: r.kind,
-      amount: r.amountCents,
+      amount: r.kind === 'expense' ? -Math.abs(r.amountCents) : Math.abs(r.amountCents),
       description: r.description,
       date: r.date,
     })),
@@ -161,6 +206,9 @@ const lastResult = computed(() => {
             <p class="text-xs text-ink-subtle">
               {{ format.toUpperCase() }} · {{ counts.total }} moviments
               ({{ counts.withCategory }} auto-categoritzats)
+              <template v-if="counts.duplicates > 0">
+                · <span class="text-warning">{{ counts.duplicates }}</span> ja existien
+              </template>
             </p>
           </div>
           <div class="flex items-center gap-2">
@@ -219,8 +267,18 @@ const lastResult = computed(() => {
 
         <div class="flex items-center gap-2 justify-end mt-4">
           <Button variant="ghost" :disabled="bulk.isPending.value" @click="cancel">Cancel·lar</Button>
-          <Button :disabled="!selectedAccountId || rows.length === 0 || bulk.isPending.value" @click="commitImport">
-            {{ bulk.isPending.value ? 'Important…' : `Importar ${rows.length}` }}
+          <Button
+            :disabled="!selectedAccountId || rows.length === 0 || bulk.isPending.value || newRowCount === 0"
+            @click="commitImport"
+          >
+            <template v-if="bulk.isPending.value">Important…</template>
+            <template v-else-if="newRowCount === 0">Ja estan tots importats</template>
+            <template v-else-if="newRowCount < rows.length">
+              Importar {{ newRowCount }} ({{ rows.length - newRowCount }} ja existien)
+            </template>
+            <template v-else>
+              Importar {{ rows.length }}
+            </template>
           </Button>
         </div>
       </Card>
@@ -228,11 +286,26 @@ const lastResult = computed(() => {
       <!-- Step 3: Done -->
       <Card v-else padding="lg">
         <div class="text-center py-6 space-y-4">
-          <h2 class="font-semibold text-finance-lg">Importació completada</h2>
+          <h2 class="font-semibold text-finance-lg">
+            <span v-if="lastResult && lastResult.created > 0">Importació completada</span>
+            <span v-else-if="lastResult && lastResult.errors > 0">No s'ha pogut importar</span>
+            <span v-else>Res nou per importar</span>
+          </h2>
           <p v-if="lastResult" class="text-sm text-ink-muted">
-            <span class="text-positive font-medium">{{ lastResult.created }}</span> importats ·
-            <span class="text-ink-subtle">{{ lastResult.skipped }}</span> duplicats saltats ·
-            <span class="text-negative">{{ lastResult.errors }}</span> errors
+            <template v-if="lastResult.created > 0">
+              <span class="text-positive font-medium">{{ lastResult.created }}</span> moviments nous importats
+            </template>
+            <template v-else-if="lastResult.errors > 0">
+              <span class="text-negative font-medium">{{ lastResult.errors }}</span> errors —
+              <span class="text-ink-subtle">revisa el format i torna-ho a provar</span>
+            </template>
+            <template v-else>
+              Tots els <span class="text-ink font-medium">{{ lastResult.skipped }}</span>
+              moviments del fitxer ja existien al compte seleccionat.
+            </template>
+          </p>
+          <p v-if="lastResult && lastResult.skipped > 0 && lastResult.created > 0" class="text-xs text-ink-subtle">
+            A més, {{ lastResult.skipped }} duplicats saltats.
           </p>
           <div class="flex items-center gap-2 justify-center">
             <Button variant="ghost" @click="reset">Importar un altre</Button>
