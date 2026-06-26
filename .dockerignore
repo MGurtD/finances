@@ -4,6 +4,8 @@ dist/
 *.log
 .env
 .env.local
+.env.*
+!/.env.production
 .DS_Store
 data/
 *.db

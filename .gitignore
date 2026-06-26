@@ -17,3 +17,5 @@ coverage/
 *.d.ts
 !packages/**/*.d.ts
 dev-start.cmd
+deploy/
+.deploy/
