@@ -94,6 +94,8 @@ pnpm typecheck      # canary
 
 The hand-written `apps/web/src/api/types.ts` carries the domain interfaces used by stores/views. Keep it in sync with Go struct `json:` tags.
 
+Run `git config core.hooksPath .githooks` once after cloning — the pre-push hook will refuse to push if `apps/web/src/api/schema.d.ts` is out of date relative to `backend/internal/api/handlers/*.go` (regenerates, stages, aborts push so the diff can be reviewed and committed).
+
 ## Environment variables (backend)
 
 | Var | Default | Notes |

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Pre-push hook: keep apps/web/src/api/schema.d.ts in sync with backend handlers.
+#
+# If any backend handler file (backend/internal/api/handlers/*.go) is newer than
+# apps/web/src/api/schema.d.ts, regenerate the schema, stage it, and abort the
+# push so the user can review the diff before committing.
+#
+# Enable with: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+schema="$repo_root/apps/web/src/api/schema.d.ts"
+handlers_dir="$repo_root/backend/internal/api/handlers"
+
+if [ ! -d "$handlers_dir" ]; then
+  exit 0
+fi
+
+needs_regen=0
+if [ ! -f "$schema" ]; then
+  needs_regen=1
+else
+  schema_mtime=$(stat -c %Y "$schema" 2>/dev/null || stat -f %m "$schema")
+  while IFS= read -r -d '' handler; do
+    handler_mtime=$(stat -c %Y "$handler" 2>/dev/null || stat -f %m "$handler")
+    if [ "$handler_mtime" -gt "$schema_mtime" ]; then
+      needs_regen=1
+      break
+    fi
+  done < <(find "$handlers_dir" -maxdepth 1 -type f -name '*.go' -print0)
+fi
+
+if [ "$needs_regen" -eq 0 ]; then
+  exit 0
+fi
+
+echo "pre-push: schema.d.ts is older than backend handlers — regenerating..." >&2
+
+(
+  cd "$repo_root"
+  (cd backend && go run github.com/swaggo/swag/cmd/swag@v1.16.6 init \
+    -g cmd/server/main.go -o internal/docs --parseDependency --parseInternal) >&2
+  (cd apps/web && pnpm gen:api) >&2
+)
+
+git -C "$repo_root" add -f apps/web/src/api/schema.d.ts
+
+cat >&2 <<'EOF'
+pre-push: schema.d.ts has been regenerated and staged (not committed).
+
+Review the diff with:  git diff --cached apps/web/src/api/schema.d.ts
+If the change is expected, commit it (e.g. git commit --amend or a new commit)
+and re-run:  git push
+EOF
+exit 1
