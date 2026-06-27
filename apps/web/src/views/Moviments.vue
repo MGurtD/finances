@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Card, Button, formatMoney } from '@finances/ui';
 import { useAddMovementStore } from '@/stores/addMovement';
 import { useMonth } from '@/composables/useMonth';
@@ -8,15 +8,18 @@ import {
   useCategories,
   useDeleteTransaction,
   useUpdateTransaction,
+  useBulkDeleteTransactions,
 } from '@/composables/queries';
 import { recordLearnedRule } from '@/utils/autoCategorize/learnedRules';
 import MonthSelector from '@/components/MonthSelector.vue';
+import Modal from '@/components/Modal.vue';
 
 const month = useMonth();
 const addMovement = useAddMovementStore();
 const { data: categories } = useCategories();
 const del = useDeleteTransaction();
 const upd = useUpdateTransaction();
+const bulkDel = useBulkDeleteTransactions();
 
 const filter = computed(() => ({ from: month.from.value, to: month.to.value }));
 const { data: transactions, isLoading } = useTransactionsList(filter);
@@ -131,6 +134,56 @@ async function applyBulkCategory() {
 }
 
 const selectedCount = computed(() => selectedIds.value.size);
+
+// ─── Bulk delete ───────────────────────────────────────────────────
+// Destructive action, gated behind a confirm modal. Goes through a
+// single POST /transactions/bulk-delete so the SQL DELETE is atomic.
+const showConfirmDelete = ref(false);
+const bulkDeleteError = ref<string | null>(null);
+
+const allSelected = computed(() => {
+  const list = transactions.value ?? [];
+  return list.length > 0 && list.every((t) => selectedIds.value.has(t.id));
+});
+
+function toggleSelectAll() {
+  if (allSelected.value) {
+    selectedIds.value = new Set();
+  } else {
+    selectedIds.value = new Set((transactions.value ?? []).map((t) => t.id));
+  }
+}
+
+function askBulkDelete() {
+  if (selectedIds.value.size === 0) return;
+  bulkDeleteError.value = null;
+  showConfirmDelete.value = true;
+}
+
+async function confirmBulkDelete() {
+  const ids = Array.from(selectedIds.value);
+  bulkDeleteError.value = null;
+  try {
+    await bulkDel.mutateAsync({ ids });
+    showConfirmDelete.value = false;
+    clearSelection();
+  } catch (e) {
+    bulkDeleteError.value =
+      e instanceof Error ? e.message : 'No s\u2019han pogut eliminar els moviments.';
+  }
+}
+
+// Clear the selection (and any open confirm modal) when the month
+// changes — otherwise we leak IDs from the previous month into the
+// current one's bulk operations.
+watch(
+  () => month.currentMonth.value,
+  () => {
+    clearSelection();
+    showConfirmDelete.value = false;
+    bulkDeleteError.value = null;
+  },
+);
 </script>
 
 <template>
@@ -151,6 +204,13 @@ const selectedCount = computed(() => selectedIds.value.size);
             <span class="font-medium text-ink">{{ selectedCount }}</span>
             seleccionats
           </span>
+          <button
+            type="button"
+            class="text-sm text-accent hover:underline"
+            @click="toggleSelectAll"
+          >
+            {{ allSelected ? 'Desseleccionar tots' : 'Seleccionar tots' }}
+          </button>
           <label class="text-xs text-ink-subtle" for="bulk-cat">Categoria:</label>
           <select
             id="bulk-cat"
@@ -169,10 +229,18 @@ const selectedCount = computed(() => selectedIds.value.size);
           </select>
           <Button
             size="sm"
-            :disabled="!bulkCategoryId || upd.isPending.value"
+            :disabled="!bulkCategoryId || upd.isPending.value || bulkDel.isPending.value"
             @click="applyBulkCategory"
           >
             {{ upd.isPending.value ? 'Aplicant…' : 'Aplicar a tots' }}
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            :disabled="upd.isPending.value || bulkDel.isPending.value"
+            @click="askBulkDelete"
+          >
+            Esborrar seleccionats
           </Button>
           <Button size="sm" variant="ghost" @click="clearSelection">
             Cancel·lar
@@ -211,7 +279,8 @@ const selectedCount = computed(() => selectedIds.value.size);
                   type="checkbox"
                   :checked="selectedIds.has(t.id)"
                   :aria-label="`Seleccionar ${t.description || 'moviment'}`"
-                  class="w-4 h-4 rounded border-border text-accent focus:ring-accent cursor-pointer shrink-0"
+                  :disabled="bulkDel.isPending.value"
+                  class="w-4 h-4 rounded border-border text-accent focus:ring-accent cursor-pointer shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
                   @change="toggleSelected(t.id)"
                 />
 
@@ -273,9 +342,9 @@ const selectedCount = computed(() => selectedIds.value.size);
                 </span>
                 <button
                   type="button"
-                  class="text-ink-subtle hover:text-negative p-1 shrink-0"
+                  class="text-ink-subtle hover:text-negative p-1 shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
                   :aria-label="`Esborrar ${t.description || 'moviment'}`"
-                  :disabled="del.isPending.value"
+                  :disabled="del.isPending.value || bulkDel.isPending.value"
                   @click="del.mutate(t.id)"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -289,5 +358,39 @@ const selectedCount = computed(() => selectedIds.value.size);
         </div>
       </div>
     </div>
+
+    <!-- Bulk delete confirmation modal -->
+    <Modal
+      :open="showConfirmDelete"
+      title="Eliminar moviments"
+      @close="showConfirmDelete = false"
+    >
+      <p class="text-sm text-ink">
+        Vols eliminar <strong>{{ selectedCount }}</strong>
+        {{ selectedCount === 1 ? 'moviment' : 'moviments' }}?
+        Aquesta acció no es pot desfer.
+      </p>
+      <p v-if="bulkDeleteError" class="mt-3 text-sm text-negative">
+        {{ bulkDeleteError }}
+      </p>
+      <div class="flex items-center gap-2 justify-end pt-4 mt-4 border-t border-border">
+        <Button
+          variant="ghost"
+          size="sm"
+          :disabled="bulkDel.isPending.value"
+          @click="showConfirmDelete = false"
+        >
+          Cancel·lar
+        </Button>
+        <Button
+          variant="destructive"
+          size="sm"
+          :disabled="bulkDel.isPending.value"
+          @click="confirmBulkDelete"
+        >
+          {{ bulkDel.isPending.value ? 'Eliminant…' : 'Eliminar' }}
+        </Button>
+      </div>
+    </Modal>
   </main>
 </template>

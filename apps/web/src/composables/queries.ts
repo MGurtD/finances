@@ -1,13 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import type { MaybeRefOrGetter, ComputedRef } from 'vue';
 import { computed, toValue } from 'vue';
-import { trpc } from '@/trpc/client';
+import { api } from '@/api/client';
 import type {
   Account,
-  Budget,
+  AccountWithBalance,
+  AuthStatusResponse,
   BudgetProgress,
   BulkCreateInput,
-  BulkCreateResult,
+  BulkDeleteInput,
+  BulkDeleteResult,
   Category,
   CategoryTreeNode,
   CreateAccountInput,
@@ -15,16 +17,51 @@ import type {
   CreateTransactionInput,
   DashboardSummary,
   MonthlySummary,
-  RecentTransaction,
   ReorderInput,
   Transaction,
+  TransactionWithDetails,
   UpdateAccountInput,
   UpdateCategoryInput,
   UpdateTransactionInput,
   UpsertBudgetInput,
-} from '@finances/contracts';
+} from '@/api/types';
 
 type MaybeRef<T> = MaybeRefOrGetter<T> | ComputedRef<T>;
+
+// openapi-fetch v0.17 in Vue mode wraps `data` in a Svelte-style Readable.
+// At runtime it resolves to the JSON body, but TS sees Readable<T>.
+// Helper: unwrap with a cast. Runtime behavior is unchanged.
+async function get<T>(path: string, opts?: Record<string, unknown>): Promise<T> {
+  const { data, error } = await api.GET(path as never, (opts ?? {}) as never);
+  if (error) throw error;
+  return data as unknown as T;
+}
+
+async function post<T>(path: string, body: unknown, opts?: Record<string, unknown>): Promise<T> {
+  const { data, error } = await api.POST(path as never, { body, ...opts } as never);
+  if (error) throw error;
+  return data as unknown as T;
+}
+
+async function put<T>(path: string, body: unknown): Promise<T> {
+  const { data, error } = await api.PUT(path as never, { body } as never);
+  if (error) throw error;
+  return data as unknown as T;
+}
+
+async function patch<T>(path: string, body?: unknown): Promise<T> {
+  const { data, error } = await api.PATCH(path as never, body ? ({ body } as never) : ({} as never));
+  if (error) throw error;
+  return data as unknown as T;
+}
+
+async function del<T>(path: string): Promise<T> {
+  const { data, error } = await api.DELETE(path as never);
+  if (error) throw error;
+  return data as unknown as T;
+}
+
+// ── query keys ────────────────────────────────────────────────────────────────
 
 export const financeKeys = {
   accounts: () => ['accounts'] as const,
@@ -40,18 +77,20 @@ export const financeKeys = {
   budgetStatus: (month: string) => ['budgets', 'status', month] as const,
 };
 
+// ── accounts ──────────────────────────────────────────────────────────────────
+
 export function useAccounts() {
   return useQuery<Account[]>({
     queryKey: financeKeys.accounts(),
-    queryFn: () => trpc.accounts.list.query(),
+    queryFn: () => get<Account[]>('/accounts'),
     staleTime: 5 * 60_000,
   });
 }
 
 export function useAccountBalances() {
-  return useQuery<{ accountId: string; balanceCents: number }[]>({
+  return useQuery<AccountWithBalance[]>({
     queryKey: financeKeys.accountBalances(),
-    queryFn: () => trpc.accounts.balances.query(),
+    queryFn: () => get<AccountWithBalance[]>('/accounts/balances'),
     staleTime: 60_000,
   });
 }
@@ -59,7 +98,7 @@ export function useAccountBalances() {
 export function useCreateAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateAccountInput) => trpc.accounts.create.mutate(input),
+    mutationFn: (input: CreateAccountInput) => post<Account>('/accounts', input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['accounts'] });
     },
@@ -69,7 +108,8 @@ export function useCreateAccount() {
 export function useUpdateAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateAccountInput) => trpc.accounts.update.mutate(input),
+    mutationFn: (input: UpdateAccountInput & { id: string }) =>
+      put<Account>(`/accounts/${input.id}`, input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['accounts'] });
       void qc.invalidateQueries({ queryKey: ['accountBalances'] });
@@ -80,7 +120,7 @@ export function useUpdateAccount() {
 export function useArchiveAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => trpc.accounts.archive.mutate({ id }),
+    mutationFn: (id: string) => patch<Account>(`/accounts/${id}/archive`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['accounts'] });
       void qc.invalidateQueries({ queryKey: ['accountBalances'] });
@@ -91,7 +131,7 @@ export function useArchiveAccount() {
 export function useDeleteAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => trpc.accounts.delete.mutate({ id }),
+    mutationFn: (id: string) => del<{ id: string }>(`/accounts/${id}`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['accounts'] });
       void qc.invalidateQueries({ queryKey: ['accountBalances'] });
@@ -101,10 +141,12 @@ export function useDeleteAccount() {
   });
 }
 
+// ── categories ────────────────────────────────────────────────────────────────
+
 export function useCategories() {
   return useQuery<Category[]>({
     queryKey: financeKeys.categories(),
-    queryFn: () => trpc.categories.list.query(),
+    queryFn: () => get<Category[]>('/categories'),
     staleTime: 5 * 60_000,
   });
 }
@@ -112,7 +154,7 @@ export function useCategories() {
 export function useCategoryTree(kind?: MaybeRef<'income' | 'expense' | undefined>) {
   return useQuery<CategoryTreeNode[]>({
     queryKey: computed(() => financeKeys.categoryTree(toValue(kind))),
-    queryFn: () => trpc.categories.tree.query({ kind: toValue(kind) }),
+    queryFn: () => get<CategoryTreeNode[]>('/categories/tree', { params: { query: { kind: toValue(kind) } } }),
     staleTime: 5 * 60_000,
   });
 }
@@ -120,7 +162,7 @@ export function useCategoryTree(kind?: MaybeRef<'income' | 'expense' | undefined
 export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateCategoryInput) => trpc.categories.create.mutate(input),
+    mutationFn: (input: CreateCategoryInput) => post<Category>('/categories', input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['categories'] });
     },
@@ -130,7 +172,8 @@ export function useCreateCategory() {
 export function useUpdateCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateCategoryInput) => trpc.categories.update.mutate(input),
+    mutationFn: (input: UpdateCategoryInput & { id: string }) =>
+      put<Category>(`/categories/${input.id}`, input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['categories'] });
     },
@@ -140,7 +183,7 @@ export function useUpdateCategory() {
 export function useArchiveCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => trpc.categories.archive.mutate({ id }),
+    mutationFn: (id: string) => patch<Category>(`/categories/${id}/archive`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['categories'] });
     },
@@ -150,24 +193,22 @@ export function useArchiveCategory() {
 export function useReorderCategories() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: ReorderInput) => trpc.categories.reorder.mutate(input),
+    mutationFn: (input: ReorderInput) => post<{ ok: boolean }>('/categories/reorder', input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['categories'] });
     },
   });
 }
 
+// ── transactions ──────────────────────────────────────────────────────────────
+
 export function useTransactionsList(filter: MaybeRef<{ from: string; to: string; accountId?: string }>) {
   return useQuery<Transaction[]>({
     queryKey: computed(() => financeKeys.transactions(toValue(filter))),
     queryFn: () => {
       const f = toValue(filter);
-      return trpc.transactions.list.query({
-        from: f.from,
-        to: f.to,
-        accountId: f.accountId,
-        limit: 200,
-        offset: 0,
+      return get<Transaction[]>('/transactions', {
+        params: { query: { from: f.from, to: f.to, accountId: f.accountId, limit: 1000, offset: 0 } },
       });
     },
   });
@@ -181,22 +222,24 @@ export function useDashboardSummary(filter: MaybeRef<{ from: string; to: string;
     }),
     queryFn: () => {
       const f = toValue(filter);
-      return trpc.dashboard.summary.query({ from: f.from, to: f.to });
+      return get<DashboardSummary>('/dashboard/summary', {
+        params: { query: { from: f.from, to: f.to } },
+      });
     },
   });
 }
 
 export function useRecentTransactions(limit: number = 5) {
-  return useQuery<RecentTransaction[]>({
+  return useQuery<TransactionWithDetails[]>({
     queryKey: financeKeys.recentTransactions(limit),
-    queryFn: () => trpc.transactions.recent.query({ limit }),
+    queryFn: () => get<TransactionWithDetails[]>('/transactions/recent', { params: { query: { limit } } }),
   });
 }
 
 export function useSummaryByMonth(months: number = 6) {
   return useQuery<MonthlySummary[]>({
     queryKey: financeKeys.summaryByMonth(months),
-    queryFn: () => trpc.transactions.summaryByMonth.query({ months }),
+    queryFn: () => get<MonthlySummary[]>('/transactions/summary-by-month', { params: { query: { months } } }),
     staleTime: 5 * 60_000,
   });
 }
@@ -204,14 +247,14 @@ export function useSummaryByMonth(months: number = 6) {
 export function useBudgetStatus(month: MaybeRef<string>) {
   return useQuery<BudgetProgress[]>({
     queryKey: computed(() => financeKeys.budgetStatus(toValue(month))),
-    queryFn: () => trpc.budgets.status.query({ month: toValue(month) }),
+    queryFn: () => get<BudgetProgress[]>('/budgets/status', { params: { query: { month: toValue(month) } } }),
   });
 }
 
 export function useUpsertBudget() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpsertBudgetInput) => trpc.budgets.upsert.mutate(input),
+    mutationFn: (input: UpsertBudgetInput) => post<BudgetProgress>('/budgets', input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['budgets'] });
     },
@@ -221,7 +264,7 @@ export function useUpsertBudget() {
 export function useDeleteBudget() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => trpc.budgets.delete.mutate({ id }),
+    mutationFn: (id: string) => del<{ id: string }>(`/budgets/${id}`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['budgets'] });
     },
@@ -231,7 +274,7 @@ export function useDeleteBudget() {
 export function useBulkCreateTransactions() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: BulkCreateInput) => trpc.transactions.bulkCreate.mutate(input),
+    mutationFn: (input: BulkCreateInput) => post<{ created: number; skipped: number; errors: number }>('/transactions/bulk', input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['transactions'] });
       void qc.invalidateQueries({ queryKey: ['dashboard'] });
@@ -243,8 +286,7 @@ export function useBulkCreateTransactions() {
 export function useCreateTransaction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateTransactionInput) =>
-      trpc.transactions.create.mutate(input),
+    mutationFn: (input: CreateTransactionInput) => post<Transaction>('/transactions', input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['transactions'] });
       void qc.invalidateQueries({ queryKey: ['dashboard'] });
@@ -255,7 +297,7 @@ export function useCreateTransaction() {
 export function useDeleteTransaction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => trpc.transactions.delete.mutate({ id }),
+    mutationFn: (id: string) => del<{ id: string }>(`/transactions/${id}`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['transactions'] });
       void qc.invalidateQueries({ queryKey: ['dashboard'] });
@@ -263,21 +305,38 @@ export function useDeleteTransaction() {
   });
 }
 
-/**
- * Update an existing transaction. Used by the inline category editor in
- * the Moviments view, by the bulk re-categorise action, and by the
- * delete-account cascade. Invalidates all dependent queries so the
- * dashboard / budgets / lists refresh in one tick.
- */
-export function useUpdateTransaction() {
+export function useBulkDeleteTransactions() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateTransactionInput) =>
-      trpc.transactions.update.mutate(input),
+    mutationFn: (input: BulkDeleteInput) =>
+      post<BulkDeleteResult>('/transactions/bulk-delete', input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['transactions'] });
       void qc.invalidateQueries({ queryKey: ['dashboard'] });
       void qc.invalidateQueries({ queryKey: ['budgets'] });
     },
+  });
+}
+
+export function useUpdateTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateTransactionInput & { id: string }) =>
+      put<Transaction>(`/transactions/${input.id}`, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['transactions'] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+      void qc.invalidateQueries({ queryKey: ['budgets'] });
+    },
+  });
+}
+
+// ── auth ──────────────────────────────────────────────────────────────────────
+
+export function useAuthStatus() {
+  return useQuery<AuthStatusResponse>({
+    queryKey: ['auth', 'status'] as const,
+    queryFn: () => get<AuthStatusResponse>('/auth/status'),
+    staleTime: 30_000,
   });
 }
