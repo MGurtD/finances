@@ -21,10 +21,26 @@ RUN cd backend && go mod download
 # Source.
 COPY backend/ ./backend/
 
+# Generate swagger docs (required by cmd/server/main.go's blank import
+# of internal/docs). `swag` is installed into the build stage only.
+RUN go install github.com/swaggo/swag/cmd/swag@v1.16.6 \
+ && cd backend && swag init -g cmd/server/main.go -o internal/docs --parseDependency --parseInternal
+
 # Static, stripped binary.
 RUN cd backend \
  && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-s -w" -trimpath -o /out/server ./cmd/server
+
+
+# ===============================================
+# Chown stage — alpine + chown, just to make /app/data owned by
+# uid 65532 (the distroless `nonroot` user). distroless has no shell,
+# so we cannot chown at runtime; we copy a pre-stamped directory
+# in via COPY --chown below.
+# ===============================================
+FROM alpine:3.20 AS chown
+RUN mkdir -p /app/data && chown 65532:65532 /app/data
+
 
 # ===============================================
 # Runtime — distroless static, nonroot (uid 65532)
@@ -36,8 +52,10 @@ RUN cd backend \
 FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=build /out/server /server
+COPY --from=chown --chown=nonroot:nonroot /app/data /app/data
 
-ENV PORT=3001 \
+ENV DATABASE_URL=/app/data/finances.db \
+    PORT=3001 \
     HOST=0.0.0.0
 
 EXPOSE 3001
