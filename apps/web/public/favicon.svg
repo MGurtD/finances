@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .coin { fill: #e85d2c; }
+    .mark { stroke: #faf7f2; }
+    @media (prefers-color-scheme: dark) {
+      .coin { fill: #ff8c5a; }
+      .mark { stroke: #1a1612; }
+    }
+  </style>
+  <circle class="coin" cx="16" cy="16" r="14"/>
+  <g class="mark" fill="none" stroke-width="2.4" stroke-linecap="round">
+    <path d="M 16 11 A 5 5 0 1 0 16 21"/>
+    <line x1="10" y1="14" x2="21" y2="14"/>
+    <line x1="10" y1="18" x2="21" y2="18"/>
+  </g>
+</svg>
