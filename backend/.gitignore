@@ -1,0 +1,18 @@
+# SQLite dev DB
+data/
+
+# Binari local (dev-restart.cmd el deixa a %TEMP%, però per si algú el
+# construeix aquí, no el volem al repo)
+/server.exe
+/server
+/finances-server.exe
+/finances-server
+
+# Generats per `swag init` i `pnpm gen:api` (regenerats a cada build)
+internal/docs/docs.go
+internal/docs/swagger.json
+internal/docs/swagger.yaml
+internal/docs/openapi.json
+
+# Eines locals
+/cmd/bcrypt-helper/
