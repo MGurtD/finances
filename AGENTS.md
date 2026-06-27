@@ -65,7 +65,6 @@ Use `codegraph_trace` for any "how does request X reach the DB" question.
 - Router guard: `apps/web/src/router/index.ts:54` calls `/auth/status` once, redirects to `/login` on miss. Public routes set `meta: { public: true }`.
 - Money helpers: `formatMoney` / `parseMoneyInput` from `@finances/ui`. Locale defaults to `ca-ES`.
 - Strict TS (`noUncheckedIndexedAccess`): `string.split('-').map(Number)` is `number | undefined`. Guard explicitly — `useMonth.ts:22-39` is the canonical pattern.
-- Orphan deps still listed: `@trpc/server`, `@trpc/client`, `superjson` (left from prior stack). Safe to delete.
 
 ## Auth and cookies
 
