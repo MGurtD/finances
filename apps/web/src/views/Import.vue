@@ -9,6 +9,7 @@ import {
 } from '@/composables/queries';
 import { parseFile, type ParsedRow } from '@/utils/importParsers';
 import { autoCategorize, type Categorisation } from '@/utils/autoCategorize';
+import { autoCategorizeCached, clearCategorisationCache } from '@/utils/autoCategorize/cache';
 import { recordLearnedRule } from '@/utils/autoCategorize/learnedRules';
 
 type Step = 'upload' | 'preview' | 'done';
@@ -106,6 +107,11 @@ function setRowCategory(rowId: string, newCategoryId: string | null) {
   // "skip", which shouldn't pollute the learned-rule store.
   if (newCategoryId) {
     recordLearnedRule(row.description, newCategoryId);
+    // Phase 5: invalidate the cache so subsequent calls to
+    // autoCategorizeCached for this description re-read the learned
+    // rule. Without this, a previous cached suggestion could shadow
+    // the user's correction.
+    clearCategorisationCache();
   }
 }
 
@@ -133,12 +139,16 @@ async function loadFile(file: File) {
       errorMsg.value = 'No hem pogut extreure cap fila. Comprova el format.';
       return;
     }
+    // Phase 5: wipe the categorisation cache so user corrections from
+    // a previous import take effect for the current one.
+    clearCategorisationCache();
     rows.value = parsed.rows.map((r) => {
-      const suggestion = autoCategorize(
-        r.description,
-        categories.value ?? [],
-        r.kind,
-      );
+      const suggestion = autoCategorizeCached({
+        description: r.description,
+        amountCents: r.amountCents,
+        kind: r.kind,
+        categories: categories.value ?? [],
+      });
       return {
         ...r,
         id: nextId(),
@@ -166,7 +176,7 @@ function cancel() {
 async function commitImport() {
   if (!selectedAccountId.value || rows.value.length === 0) return;
   const result = await bulk.mutateAsync({
-    rows: rows.value.map((r) => ({
+    transactions: rows.value.map((r) => ({
       accountId: selectedAccountId.value!,
       categoryId: r.categoryId,
       kind: r.kind,
@@ -186,6 +196,18 @@ function reset() {
   filename.value = '';
   format.value = 'unknown';
   errorMsg.value = null;
+}
+
+/**
+ * Map a candidate score (0–1) to a short confidence label for the dropdown.
+ * Keeps the dropdown readable — three-letter codes are easier to scan than
+ * percentages.
+ */
+function confidenceLabel(score: number): string {
+  if (score >= 0.78) return 'alta';
+  if (score >= 0.55) return 'mitja';
+  if (score >= 0.32) return 'baixa';
+  return 'mín.';
 }
 
 const lastResult = computed(() => {
@@ -291,6 +313,19 @@ const lastResult = computed(() => {
                     @change="(e) => setRowCategory(r.id, ((e.target as HTMLSelectElement).value || null))"
                   >
                     <option :value="null">— Sense categoria —</option>
+                    <!-- Phase 4: top-3 candidates grouped + tagged by confidence
+                         so the user sees the system's best guesses first. -->
+                    <template v-if="r.suggestion.candidates.length > 0">
+                      <option disabled value="">──── Suggeriments ────</option>
+                      <option
+                        v-for="c in r.suggestion.candidates"
+                        :key="'sug-' + c.id"
+                        :value="c.id"
+                      >
+                        {{ c.name }} ({{ confidenceLabel(c.score) }})
+                      </option>
+                      <option disabled value="">──── Totes ────</option>
+                    </template>
                     <option
                       v-for="c in (categories ?? []).filter((c) => !c.archived)"
                       :key="c.id"
@@ -305,6 +340,20 @@ const lastResult = computed(() => {
                   >
                     Suggeriment dèbil — revisa
                   </p>
+                  <details
+                    v-if="r.suggestion.reasons.length > 0"
+                    class="text-[10px] text-ink-subtle mt-1 cursor-pointer"
+                  >
+                    <summary>Per què?</summary>
+                    <ul class="mt-1 space-y-0.5 list-disc list-inside">
+                      <li
+                        v-for="(reason, idx) in r.suggestion.reasons.slice(0, 3)"
+                        :key="idx"
+                      >
+                        {{ reason.detail }}
+                      </li>
+                    </ul>
+                  </details>
                 </td>
               </tr>
             </tbody>
