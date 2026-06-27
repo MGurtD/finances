@@ -20,3 +20,9 @@ coverage/
 !packages/**/*.d.ts
 README.md
 node_modules.bak
+apps/api/
+scripts/
+docs/
+.deploy/
+deploy/
+docker/finances/api/

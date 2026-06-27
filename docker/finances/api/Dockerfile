@@ -1,4 +1,8 @@
 # ===============================================
+# DEPRECATED — kept for scripts/deploy.sh backwards compat.
+# Use backend/Dockerfile (multi-stage, GHCR-published) instead.
+# See .github/workflows/docker-publish.yml.
+# ===============================================
 # API Dockerfile — Finances
 #
 # Fast build by leveraging the host's pnpm store and avoiding in-container
