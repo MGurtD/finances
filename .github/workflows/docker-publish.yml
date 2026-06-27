@@ -2,10 +2,10 @@ name: docker-publish
 
 on:
   push:
-    branches: [main, dev]
+    branches: [master, dev]
     tags: ["v*.*.*"]
   pull_request:
-    branches: [main, dev]
+    branches: [master, dev]
   workflow_dispatch:
 
 permissions:
@@ -33,6 +33,14 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
 
+      - name: Install swag
+        working-directory: backend
+        run: go install github.com/swaggo/swag/cmd/swag@v1.16.6
+
+      - name: Generate swagger docs
+        working-directory: backend
+        run: swag init -g cmd/server/main.go -o internal/docs --parseDependency --parseInternal
+
       - name: go test ./...
         working-directory: backend
         run: go test ./...
@@ -43,6 +51,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.0.0
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -51,6 +63,17 @@ jobs:
 
       - name: pnpm install
         run: pnpm install --frozen-lockfile
+
+      - name: Generate OpenAPI schema for web
+        # schema.d.ts is generated (gitignored) and required by
+        # apps/web/src/api/client.ts. Generated from the backend's
+        # swag output, so it must run BEFORE typecheck.
+        run: |
+          cd backend
+          go run github.com/swaggo/swag/cmd/swag@v1.16.6 init \
+            -g cmd/server/main.go -o internal/docs --parseDependency --parseInternal
+          cd ../apps/web
+          pnpm gen:api
 
       - name: typecheck
         run: pnpm --filter @finances/web typecheck
