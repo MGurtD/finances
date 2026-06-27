@@ -25,9 +25,9 @@ jobs:
     name: Test — backend (go)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26"
           cache: true
@@ -49,13 +49,13 @@ jobs:
     name: Test — frontend (typecheck + vitest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v4
         with:
           version: 9.0.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: pnpm
@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-backend, test-frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Login to GHCR
         if: github.event_name != 'pull_request'
@@ -132,7 +132,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-backend, test-frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Login to GHCR
         if: github.event_name != 'pull_request'
