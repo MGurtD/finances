@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import type { TransactionKind } from '@finances/contracts';
+import type { TransactionKind } from '@/api/types';
 
 export interface ParsedRow {
   date: string;

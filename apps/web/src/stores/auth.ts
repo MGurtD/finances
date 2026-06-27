@@ -1,6 +1,10 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import type { AuthStatus } from '@finances/contracts';
+
+interface AuthStatus {
+  authenticated: boolean;
+  issuedAt?: string;
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const status = ref<AuthStatus | null>(null);

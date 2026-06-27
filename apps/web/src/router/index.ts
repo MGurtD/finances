@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteLocationNormalized } from 'vue-router';
-import { trpc } from '@/trpc/client';
+import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
+import type { AuthStatusResponse } from '@/api/types';
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -56,8 +57,12 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
 
   if (!auth.ready) {
     try {
-      const status = await trpc.auth.status.query();
-      auth.set(status);
+      const { data, error } = await api.GET('/auth/status' as never);
+      if (!error && data) {
+        auth.set(data as unknown as AuthStatusResponse);
+      } else {
+        auth.clear();
+      }
     } catch {
       auth.clear();
     }

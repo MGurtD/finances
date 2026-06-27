@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { Card, Button } from '@finances/ui';
-import { trpc } from '@/trpc/client';
-import type { Health } from '@finances/contracts';
+import { api } from '@/api/client';
+import type { HealthResponse } from '@/api/types';
 
-const health = ref<Health | null>(null);
+const health = ref<HealthResponse | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(false);
 
@@ -12,7 +12,9 @@ async function check() {
   loading.value = true;
   error.value = null;
   try {
-    health.value = await trpc.health.get.query();
+    const { data, error: err } = await api.GET('/health');
+    if (err) throw err;
+    health.value = data ?? null;
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Error desconegut';
   } finally {
@@ -34,7 +36,7 @@ onMounted(check);
       <div class="space-y-4">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm text-ink-subtle uppercase tracking-wide">tRPC · health.get</p>
+            <p class="text-sm text-ink-subtle uppercase tracking-wide">Go · GET /health</p>
             <p class="font-mono text-sm mt-1">
               <span v-if="loading" class="text-ink-muted">comprovant…</span>
               <span v-else-if="error" class="text-negative">{{ error }}</span>

@@ -3,7 +3,7 @@ import { ThemeToggle } from '@finances/ui';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
-import { trpc } from '@/trpc/client';
+import { api } from '@/api/client';
 
 const themeStore = useThemeStore();
 const auth = useAuthStore();
@@ -27,7 +27,7 @@ function isActive(key: string): boolean {
 
 async function logout() {
   try {
-    await trpc.auth.logout.mutate();
+    await api.POST('/auth/logout' as never, {} as never);
   } finally {
     auth.clear();
     void router.replace({ name: 'login' });

@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Card } from '@finances/ui';
-import { trpc } from '@/trpc/client';
+import { api } from '@/api/client';
 import { useAddMovementStore } from '@/stores/addMovement';
 import { useAuthStore } from '@/stores/auth';
 import { useThemeStore } from '@/stores/theme';
@@ -65,7 +65,7 @@ const staticItems = computed<Item[]>(() => [
     group: 'Accions',
     label: 'Tanca sessio',
     action: () => {
-      void trpc.auth.logout.mutate().finally(() => {
+      void api.POST('/auth/logout' as never, {} as never).finally(() => {
         auth.clear();
         void router.replace({ name: 'login' });
       });
@@ -80,13 +80,15 @@ const recent = ref<
 async function loadRecent() {
   if (recent.value.length > 0) return;
   try {
-    const rows = await trpc.transactions.recent.query({ limit: 8 });
-    recent.value = rows.map((r) => ({
-      id: r.id,
+    const { data, error } = await api.GET('/transactions/recent' as never, { params: { query: { limit: 8 } } } as never);
+    if (error) throw error;
+    const list = (data ?? []) as Array<{ id?: string; description?: string; date?: string; amount?: number; kind?: string; categoryName?: string }>;
+    recent.value = list.map((r) => ({
+      id: r.id ?? '',
       description: r.description || r.categoryName || 'Moviment',
-      date: r.date,
-      amount: r.amount,
-      kind: r.kind as 'income' | 'expense',
+      date: r.date ?? '',
+      amount: r.amount ?? 0,
+      kind: (r.kind === 'income' || r.kind === 'expense') ? r.kind : 'expense',
     }));
   } catch {
     recent.value = [];

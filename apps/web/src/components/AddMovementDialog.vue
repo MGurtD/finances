@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Button, Card, Input, formatMoney, parseMoneyInput } from '@finances/ui';
-import type { Category } from '@finances/contracts';
+import type { Category } from '@/api/types';
 import { useAddMovementStore } from '@/stores/addMovement';
 import { useAccounts, useCategories, useCreateTransaction } from '@/composables/queries';
 import { toMonth, currentMonthString } from '@/composables/useMonth';
@@ -19,9 +19,10 @@ const accountId = ref<string | null>(null);
 const date = ref('');
 const error = ref<string | null>(null);
 
-const availableCategories = computed<Category[]>(() =>
-  (categories.value ?? []).filter((c) => c.kind === kind.value && !c.archived),
-);
+const availableCategories = computed<Category[]>(() => {
+  const cats = (categories.value ?? []) as Category[];
+  return cats.filter((c) => c.kind === kind.value && !c.archived);
+});
 
 const amountCents = computed(() => parseMoneyInput(amountText.value));
 
@@ -58,7 +59,7 @@ async function submit() {
   const signedAmount = kind.value === 'expense' ? -amountCents.value : amountCents.value;
   try {
     await create.mutateAsync({
-      accountId: accountId.value,
+      accountId: accountId.value as string,
       categoryId: categoryId.value,
       kind: kind.value,
       amount: signedAmount,

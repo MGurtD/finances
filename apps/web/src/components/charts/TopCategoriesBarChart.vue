@@ -10,7 +10,7 @@ import {
 } from 'chart.js';
 import { Bar } from 'vue-chartjs';
 import type { ChartData, ChartOptions } from 'chart.js';
-import type { CategoryBreakdown } from '@finances/contracts';
+import type { SummaryByCategoryItem } from '@/api/types';
 import { useChartColors } from '@/composables/useChartColors';
 import { formatMoney } from '@finances/ui';
 
@@ -18,7 +18,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 const props = withDefaults(
   defineProps<{
-    data: CategoryBreakdown[] | undefined;
+    data: SummaryByCategoryItem[] | undefined;
     limit?: number;
   }>(),
   { limit: 6 },
@@ -26,17 +26,23 @@ const props = withDefaults(
 
 const { palette } = useChartColors();
 
+// Map backend SummaryByCategoryItem to chart expectations:
+// - categoryName → name
+// - total → cents
+// - color: generated from palette since backend doesn't provide it
+const chartColors = ['#6366F1', '#2E7D32', '#1976D2', '#7B1FA2', '#ED6C02', '#5D4037', '#00838F', '#AD1457', '#F9A825', '#455A64'];
+
 const top = computed(() =>
-  (props.data ?? []).slice().sort((a, b) => b.cents - a.cents).slice(0, props.limit),
+  (props.data ?? []).slice().sort((a, b) => (b.total ?? 0) - (a.total ?? 0)).slice(0, props.limit),
 );
 
 const chartData = computed<ChartData<'bar'>>(() => ({
-  labels: top.value.map((c) => c.name),
+  labels: top.value.map((c) => c.categoryName ?? c.categoryId ?? 'Unknown'),
   datasets: [
     {
       label: 'Despesa',
-      data: top.value.map((c) => c.cents),
-      backgroundColor: top.value.map((c) => c.color),
+      data: top.value.map((c) => c.total ?? 0),
+      backgroundColor: top.value.map((_, i) => chartColors[i % chartColors.length] ?? palette.value.accent),
       borderRadius: 6,
       borderSkipped: false,
       maxBarThickness: 28,

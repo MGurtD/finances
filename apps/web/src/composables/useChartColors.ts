@@ -10,6 +10,7 @@ export function useChartColors() {
   const palette = ref({
     positive: '#2e7d32',
     negative: '#c62828',
+    accent: '#6366F1',
     ink: '#2b1810',
     inkMuted: '#6b5d50',
     inkSubtle: '#8b7355',
@@ -24,6 +25,7 @@ export function useChartColors() {
     palette.value = {
       positive: style.getPropertyValue('--positive').trim() || palette.value.positive,
       negative: style.getPropertyValue('--negative').trim() || palette.value.negative,
+      accent: style.getPropertyValue('--accent').trim() || palette.value.accent,
       ink: style.getPropertyValue('--ink').trim() || palette.value.ink,
       inkMuted: style.getPropertyValue('--ink-muted').trim() || palette.value.inkMuted,
       inkSubtle: style.getPropertyValue('--ink-subtle').trim() || palette.value.inkSubtle,

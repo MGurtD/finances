@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CategoryTreeNode } from '@finances/contracts';
+import type { CategoryTreeNode } from '@/api/types';
 // CategoryTreeNodeRow is auto-resolved by plugin-vue (recursive child render).
 // Do NOT add an explicit `import CategoryTreeNodeRow from './CategoryTreeNodeRow.vue'`
 // here — it creates a module self-cycle that prevents the tree from rendering.
@@ -12,13 +12,13 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  edit: [CategoryTreeNode];
-  archive: [CategoryTreeNode];
-  'add-child': [CategoryTreeNode, 'income' | 'expense'];
-  'drag-start': [DragEvent, string];
-  'drag-over': [DragEvent, string];
-  'drag-leave': [string];
-  drop: [DragEvent, string];
+  edit: [node: CategoryTreeNode];
+  archive: [node: CategoryTreeNode];
+  'add-child': [node: CategoryTreeNode, kind: 'income' | 'expense'];
+  'drag-start': [event: DragEvent, id: string];
+  'drag-over': [event: DragEvent, id: string];
+  'drag-leave': [id: string];
+  drop: [event: DragEvent, id: string];
 }>();
 
 function isOver(): boolean {
@@ -83,7 +83,7 @@ function isOver(): boolean {
       </div>
     </div>
 
-    <ul v-if="node.children.length > 0" class="space-y-1">
+    <ul v-if="node.children && node.children.length > 0" class="space-y-1">
       <CategoryTreeNodeRow
         v-for="child in node.children"
         :key="child.id"

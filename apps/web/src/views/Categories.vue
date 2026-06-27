@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { Button } from '@finances/ui';
-import type { CategoryTreeNode } from '@finances/contracts';
+import type { CategoryTreeNode } from '@/api/types';
 import {
   useArchiveCategory,
   useCategoryTree,
@@ -42,10 +42,10 @@ function openCreate(parent: CategoryTreeNode | null, kind: 'income' | 'expense')
 function openEdit(node: CategoryTreeNode) {
   editing.value = node;
   form.value = {
-    name: node.name,
-    kind: node.kind,
-    parentId: node.parentId,
-    color: node.color,
+    name: node.name ?? '',
+    kind: (node.kind as 'income' | 'expense') ?? 'expense',
+    parentId: node.parentId ?? null,
+    color: node.color ?? COLORS[0]!,
   };
   dialogOpen.value = true;
 }
@@ -54,7 +54,7 @@ async function submit() {
   if (form.value.name.trim() === '') return;
   if (editing.value) {
     await update.mutateAsync({
-      id: editing.value.id,
+      id: editing.value.id ?? '',
       name: form.value.name.trim(),
       color: form.value.color,
     });
@@ -72,7 +72,7 @@ async function submit() {
 
 async function confirmArchive(node: CategoryTreeNode) {
   if (window.confirm(`Arxivar la categoria "${node.name}"?`)) {
-    await archive.mutateAsync(node.id);
+    await archive.mutateAsync(node.id ?? '');
   }
 }
 

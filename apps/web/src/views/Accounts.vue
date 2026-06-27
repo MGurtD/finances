@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { Button, formatMoney } from '@finances/ui';
-import type { Account, AccountType } from '@finances/contracts';
+import type { Account, AccountType } from '@/api/types';
 import {
   useAccounts,
   useAccountBalances,
@@ -19,9 +19,12 @@ const update = useUpdateAccount();
 const archive = useArchiveAccount();
 const remove = useDeleteAccount();
 
+interface BalanceItem { accountId?: string; balanceCents?: number }
 const balanceMap = computed(() => {
   const m = new Map<string, number>();
-  for (const b of balances.value ?? []) m.set(b.accountId, b.balanceCents);
+  for (const b of (balances.value ?? []) as BalanceItem[]) {
+    if (b.accountId) m.set(b.accountId, b.balanceCents ?? 0);
+  }
   return m;
 });
 
@@ -59,10 +62,10 @@ function openCreate() {
 function openEdit(acc: Account) {
   editing.value = acc;
   form.value = {
-    name: acc.name,
-    type: acc.type,
-    color: acc.color,
-    initialBalance: acc.initialBalance,
+    name: acc.name ?? '',
+    type: (acc.type as AccountType) ?? 'checking',
+    color: acc.color ?? COLORS[0]!,
+    initialBalance: acc.initialBalance ?? 0,
   };
   dialogOpen.value = true;
 }
@@ -71,7 +74,7 @@ async function submit() {
   if (form.value.name.trim() === '') return;
   if (editing.value) {
     await update.mutateAsync({
-      id: editing.value.id,
+      id: editing.value.id ?? '',
       name: form.value.name.trim(),
       type: form.value.type,
       color: form.value.color,
@@ -91,7 +94,7 @@ async function submit() {
 
 async function confirmArchive(acc: Account) {
   if (window.confirm(`Arxivar el compte "${acc.name}"?`)) {
-    await archive.mutateAsync(acc.id);
+    await archive.mutateAsync(acc.id ?? '');
   }
 }
 
@@ -101,11 +104,12 @@ async function confirmDelete(acc: Account) {
       `Eliminar el compte "${acc.name}"? Aquesta acció esborra el compte i totes les transaccions associades. No es pot desfer.`,
     )
   ) {
-    await remove.mutateAsync(acc.id);
+    await remove.mutateAsync(acc.id ?? '');
   }
 }
 
-function typeLabel(t: AccountType): string {
+function typeLabel(t: AccountType | string | undefined): string {
+  if (!t) return '';
   return ACCOUNT_TYPES.find((x) => x.value === t)?.label ?? t;
 }
 </script>

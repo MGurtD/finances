@@ -2,10 +2,10 @@
 import { computed } from 'vue';
 import { Card, formatMoney } from '@finances/ui';
 import { RouterLink } from 'vue-router';
-import type { RecentTransaction } from '@finances/contracts';
+import type { TransactionWithDetails } from '@/api/types';
 
 const props = defineProps<{
-  data: RecentTransaction[] | undefined;
+  data: TransactionWithDetails[] | undefined;
   loading?: boolean;
 }>();
 
@@ -71,11 +71,11 @@ const hasData = computed(() => (props.data?.length ?? 0) > 0);
             class="font-mono text-sm tabular-nums"
             :class="t.kind === 'income' ? 'text-positive' : 'text-negative'"
           >
-            {{ formatMoney(t.kind === 'income' ? t.amount : -t.amount, { showSign: true }) }}
+            {{ formatMoney(t.kind === 'income' ? (t.amount ?? 0) : -(t.amount ?? 0), { showSign: true }) }}
           </p>
           <p class="text-[11px] text-ink-subtle">
-            {{ formatDate(t.date) }}
-            <span v-if="!['Avui','Ahir'].includes(formatDate(t.date))" class="ml-0.5">{{ shortMonth(t.date) }}</span>
+            {{ formatDate(t.date ?? '') }}
+            <span v-if="!['Avui','Ahir'].includes(formatDate(t.date ?? ''))" class="ml-0.5">{{ shortMonth(t.date ?? '') }}</span>
           </p>
         </div>
       </li>

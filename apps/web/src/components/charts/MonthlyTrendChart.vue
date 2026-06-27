@@ -12,7 +12,7 @@ import {
 } from 'chart.js';
 import { Line } from 'vue-chartjs';
 import type { ChartData, ChartOptions } from 'chart.js';
-import type { MonthlySummary } from '@finances/contracts';
+import type { MonthlySummary } from '@/api/types';
 import { useChartColors } from '@/composables/useChartColors';
 import { formatCompactMoney } from '@finances/ui';
 
@@ -33,11 +33,11 @@ const props = defineProps<{
 const { palette } = useChartColors();
 
 const chartData = computed<ChartData<'line'>>(() => ({
-  labels: (props.data ?? []).map((m) => monthLabel(m.month)),
+  labels: (props.data ?? []).map((m) => monthLabel(m.month ?? '')),
   datasets: [
     {
       label: 'Ingressos',
-      data: (props.data ?? []).map((m) => m.incomeCents / 100),
+      data: (props.data ?? []).map((m) => (m.incomeCents ?? 0) / 100),
       borderColor: palette.value.positive,
       backgroundColor: hexToRgba(palette.value.positive, 0.12),
       fill: true,
@@ -48,7 +48,7 @@ const chartData = computed<ChartData<'line'>>(() => ({
     },
     {
       label: 'Despeses',
-      data: (props.data ?? []).map((m) => m.expenseCents / 100),
+      data: (props.data ?? []).map((m) => (m.expenseCents ?? 0) / 100),
       borderColor: palette.value.negative,
       backgroundColor: hexToRgba(palette.value.negative, 0.12),
       fill: true,

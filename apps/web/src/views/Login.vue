@@ -2,8 +2,9 @@
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Card, Button, Input } from '@finances/ui';
-import { trpc } from '@/trpc/client';
+import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
+import type { AuthStatusResponse } from '@/api/types';
 
 const router = useRouter();
 const route = useRoute();
@@ -18,8 +19,9 @@ async function submit() {
   error.value = null;
   submitting.value = true;
   try {
-    const result = await trpc.auth.login.mutate({ password: password.value });
-    auth.set(result);
+    const { data, error: err } = await api.POST('/auth/login' as never, { body: { password: password.value } } as never);
+    if (err) throw err;
+    if (data) auth.set(data as unknown as AuthStatusResponse);
     password.value = '';
     const redirect = (route.query['redirect'] as string) || '/';
     void router.replace(redirect);
@@ -37,11 +39,15 @@ onMounted(async () => {
     return;
   }
   try {
-    const s = await trpc.auth.status.query();
-    auth.set(s);
-    if (s.authenticated) {
-      const redirect = (route.query['redirect'] as string) || '/';
-      void router.replace(redirect);
+    const { data, error: err } = await api.GET('/auth/status' as never);
+    if (err) throw err;
+    if (data) {
+      const status = data as unknown as AuthStatusResponse;
+      auth.set(status);
+      if (status.authenticated) {
+        const redirect = (route.query['redirect'] as string) || '/';
+        void router.replace(redirect);
+      }
     }
   } catch {
     auth.clear();
