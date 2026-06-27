@@ -32,7 +32,7 @@ COPY packages ./packages
 # its workspace deps) so vue-tsc lands in apps/web/node_modules.
 # NOTE: vue-tsc is run in --noEmit mode to bypass the missing
 # apps/web/src/api/schema.ts (openapi-fetch types). Tracking issue:
-# see #XX — schema.ts generation is broken on master (commit 4c2a849).
+# see #XX — schema.ts generation is broken on main (commit 4c2a849).
 # The runtime build (`vite build`) is independent of typecheck.
 RUN pnpm install --filter @finances/web... --no-frozen-lockfile \
  && pnpm --filter @finances/web exec vue-tsc --noEmit || true \

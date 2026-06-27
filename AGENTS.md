@@ -65,7 +65,6 @@ Use `codegraph_trace` for any "how does request X reach the DB" question.
 - Router guard: `apps/web/src/router/index.ts:54` calls `/auth/status` once, redirects to `/login` on miss. Public routes set `meta: { public: true }`.
 - Money helpers: `formatMoney` / `parseMoneyInput` from `@finances/ui`. Locale defaults to `ca-ES`.
 - Strict TS (`noUncheckedIndexedAccess`): `string.split('-').map(Number)` is `number | undefined`. Guard explicitly — `useMonth.ts:22-39` is the canonical pattern.
-- Orphan deps still listed: `@trpc/server`, `@trpc/client`, `superjson` (left from prior stack). Safe to delete.
 
 ## Auth and cookies
 
@@ -93,6 +92,8 @@ pnpm typecheck      # canary
 ```
 
 The hand-written `apps/web/src/api/types.ts` carries the domain interfaces used by stores/views. Keep it in sync with Go struct `json:` tags.
+
+Run `git config core.hooksPath .githooks` once after cloning — the pre-push hook will refuse to push if `apps/web/src/api/schema.d.ts` is out of date relative to `backend/internal/api/handlers/*.go` (regenerates, stages, aborts push so the diff can be reviewed and committed).
 
 ## Environment variables (backend)
 
