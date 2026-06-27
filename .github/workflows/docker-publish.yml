@@ -33,6 +33,14 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
 
+      - name: Install swag
+        working-directory: backend
+        run: go install github.com/swaggo/swag/cmd/swag@v1.16.6
+
+      - name: Generate swagger docs
+        working-directory: backend
+        run: swag init -g cmd/server/main.go -o internal/docs --parseDependency --parseInternal
+
       - name: go test ./...
         working-directory: backend
         run: go test ./...
@@ -42,6 +50,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.0.0
 
       - uses: actions/setup-node@v4
         with:
