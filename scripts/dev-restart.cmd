@@ -96,9 +96,10 @@ if "%DO_BACKEND%"=="1" (
     popd >nul
     echo     ^>^> %BIN_PATH%
 
-    echo [backend] arrencant ^(logs: %LOG_DIR%\backend.log^)^...
-    powershell -NoProfile -Command ^
-        "Start-Process -FilePath '%BIN_PATH%' -RedirectStandardOutput '%LOG_DIR%\backend.log' -RedirectStandardError '%LOG_DIR%\backend.err' -WorkingDirectory '%BACKEND_DIR%'"
+    echo [backend] arrencant (logs: %LOG_DIR%\backend.log)
+    pushd "%BACKEND_DIR%" >nul
+    start "finances-backend" /B "%BIN_PATH%" 1> "%LOG_DIR%\backend.log" 2> "%LOG_DIR%\backend.err"
+    popd >nul
 
     REM espera el port amb un bucle finit (for /l evita problemes amb set /a)
     set "BE_UP=0"
