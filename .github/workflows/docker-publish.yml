@@ -76,16 +76,14 @@ jobs:
           set -e
           cd "$GITHUB_WORKSPACE"
           cp apps/web/src/api/schema.d.ts /tmp/schema.committed.ts
-          cd backend
-          go run github.com/swaggo/swag/cmd/swag@v1.16.6 init \
-            -g cmd/server/main.go -o internal/docs --parseDependency --parseInternal
-          cd ../apps/web
-          pnpm gen:api
-          if ! diff -q /tmp/schema.committed.ts apps/web/src/api/schema.d.ts >/dev/null; then
+          (cd backend && go run github.com/swaggo/swag/cmd/swag@v1.16.6 init \
+            -g cmd/server/main.go -o internal/docs --parseDependency --parseInternal)
+          (cd apps/web && pnpm gen:api)
+          if ! diff -q /tmp/schema.committed.ts "$GITHUB_WORKSPACE/apps/web/src/api/schema.d.ts" >/dev/null; then
             echo "::error::apps/web/src/api/schema.d.ts is out of sync with backend handlers." >&2
             echo "::error::Regenerate locally with: pnpm gen:api" >&2
             echo "::error::Then commit the result and re-push." >&2
-            diff /tmp/schema.committed.ts apps/web/src/api/schema.d.ts | head -100 >&2 || true
+            diff /tmp/schema.committed.ts "$GITHUB_WORKSPACE/apps/web/src/api/schema.d.ts" | head -100 >&2 || true
             exit 1
           fi
 
