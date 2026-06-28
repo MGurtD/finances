@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { sha256 } from 'js-sha256';
 import Papa from 'papaparse';
 import type { TransactionKind } from '@/api/types';
 import type { ParsedRow } from './types';
@@ -152,9 +152,7 @@ function classify(
  * importer that wants backend dedup activation can return this from `parse`.
  */
 export function rowImportHash(row: Pick<ParsedRow, 'date' | 'description' | 'amountCents'>): string {
-  return createHash('sha256')
-    .update(`${row.date}|${row.description}|${row.amountCents}`)
-    .digest('hex');
+  return sha256(`${row.date}|${row.description}|${row.amountCents}`);
 }
 
 export function parseCsv(text: string): ParsedRow[] {
