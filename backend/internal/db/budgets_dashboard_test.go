@@ -67,8 +67,8 @@ func TestBudgets_Status(t *testing.T) {
 	store, cleanup := testDB(t)
 	defer cleanup()
 
-	t.Run("returns budget status with progress", func(t *testing.T) {
-		// Create a budget
+	t.Run("returns global budget plus per-category orphan rows", func(t *testing.T) {
+		// Create a global budget for the month
 		_, err := store.Budgets.Upsert(models.UpsertBudgetReq{
 			Month:       "2026-01",
 			AmountCents: 10000,
@@ -77,7 +77,7 @@ func TestBudgets_Status(t *testing.T) {
 			t.Fatalf("Upsert failed: %v", err)
 		}
 
-		// Create expense transactions that consume part of the budget
+		// Create an expense transaction that consumes part of the global budget.
 		accountID := "00000000-0000-0000-0000-000000000001"
 		now := "2026-01-15T00:00:00Z"
 		_, err = store.DB.Exec(`
@@ -92,17 +92,144 @@ func TestBudgets_Status(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Status failed: %v", err)
 		}
-		if len(status) != 1 {
-			t.Fatalf("len(status) = %d, want 1", len(status))
+
+		// Expected: 1 global + every non-archived expense category seeded by default.
+		// Seed inserts 17 expense categories, so we expect 18 rows.
+		if len(status) < 2 {
+			t.Fatalf("len(status) = %d, want at least 2 (global + categories)", len(status))
 		}
-		if status[0].SpentCents != 3000 {
-			t.Errorf("spentCents = %d, want 3000", status[0].SpentCents)
+
+		// Global row is first and has categoryId == nil.
+		var global *models.BudgetStatusItem
+		orphanCount := 0
+		for i := range status {
+			if status[i].CategoryID == nil {
+				global = &status[i]
+			} else if status[i].BudgetID == "" {
+				orphanCount++
+			}
 		}
-		if status[0].RemainingCents != 7000 {
-			t.Errorf("remainingCents = %d, want 7000", status[0].RemainingCents)
+		if global == nil {
+			t.Fatal("expected a global row (categoryId == nil)")
 		}
-		if status[0].PercentUsed != 30.0 {
-			t.Errorf("percentUsed = %f, want 30.0", status[0].PercentUsed)
+		if global.SpentCents != 3000 {
+			t.Errorf("global spentCents = %d, want 3000", global.SpentCents)
+		}
+		if global.RemainingCents != 7000 {
+			t.Errorf("global remainingCents = %d, want 7000", global.RemainingCents)
+		}
+		if global.Percent != 30.0 {
+			t.Errorf("global percent = %f, want 30.0", global.Percent)
+		}
+		if global.Status != "on_track" {
+			t.Errorf("global status = %q, want \"on_track\" (30%% < 80%%)", global.Status)
+		}
+		if global.BudgetID == "" {
+			t.Error("global row should have a budgetId")
+		}
+		if global.CategoryName == "" {
+			t.Error("global row should have a categoryName")
+		}
+		// Every expense category from the seed should appear as an orphan
+		// because no per-category budget was created in this test.
+		if orphanCount < 10 {
+			t.Errorf("orphan rows = %d, want at least 10 (seed has 17 expense categories)", orphanCount)
+		}
+	})
+
+	t.Run("per-category budget marks categoryName and status", func(t *testing.T) {
+		// 95% spent → "warning" status.
+		_, err := store.Budgets.Upsert(models.UpsertBudgetReq{
+			CategoryID:  ptr("00000000-0000-0000-0000-000000000203"), // Alimentació
+			Month:       "2026-02",
+			AmountCents: 10000,
+		})
+		if err != nil {
+			t.Fatalf("Upsert failed: %v", err)
+		}
+		_, err = store.DB.Exec(`
+			INSERT INTO transactions (id, account_id, category_id, kind, amount, date, created_at, updated_at)
+			VALUES ('tx-cat-warn', ?, '00000000-0000-0000-0000-000000000203', 'expense', -9500, '2026-02-10', '2026-02-10T00:00:00Z', '2026-02-10T00:00:00Z')`,
+			"00000000-0000-0000-0000-000000000001")
+		if err != nil {
+			t.Fatalf("insert expense failed: %v", err)
+		}
+
+		status, err := store.Budgets.Status("2026-02")
+		if err != nil {
+			t.Fatalf("Status failed: %v", err)
+		}
+
+		var row *models.BudgetStatusItem
+		for i := range status {
+			if status[i].CategoryID != nil && *status[i].CategoryID == "00000000-0000-0000-0000-000000000203" {
+				row = &status[i]
+				break
+			}
+		}
+		if row == nil {
+			t.Fatal("expected Alimentació row in status")
+		}
+		if row.CategoryName != "Alimentació" {
+			t.Errorf("categoryName = %q, want \"Alimentació\"", row.CategoryName)
+		}
+		if row.CategoryColor == "" {
+			t.Error("categoryColor should be populated")
+		}
+		if row.SpentCents != 9500 {
+			t.Errorf("spentCents = %d, want 9500", row.SpentCents)
+		}
+		if row.BudgetCents != 10000 {
+			t.Errorf("budgetCents = %d, want 10000", row.BudgetCents)
+		}
+		if row.Percent != 95.0 {
+			t.Errorf("percent = %f, want 95.0", row.Percent)
+		}
+		if row.Status != "warning" {
+			t.Errorf("status = %q, want \"warning\"", row.Status)
+		}
+	})
+
+	t.Run("over budget marks status as over", func(t *testing.T) {
+		_, err := store.Budgets.Upsert(models.UpsertBudgetReq{
+			CategoryID:  ptr("00000000-0000-0000-0000-000000000204"), // Restaurants i oci
+			Month:       "2026-03",
+			AmountCents: 5000,
+		})
+		if err != nil {
+			t.Fatalf("Upsert failed: %v", err)
+		}
+		_, err = store.DB.Exec(`
+			INSERT INTO transactions (id, account_id, category_id, kind, amount, date, created_at, updated_at)
+			VALUES ('tx-cat-over', ?, '00000000-0000-0000-0000-000000000204', 'expense', -8000, '2026-03-05', '2026-03-05T00:00:00Z', '2026-03-05T00:00:00Z')`,
+			"00000000-0000-0000-0000-000000000001")
+		if err != nil {
+			t.Fatalf("insert expense failed: %v", err)
+		}
+
+		status, err := store.Budgets.Status("2026-03")
+		if err != nil {
+			t.Fatalf("Status failed: %v", err)
+		}
+
+		var row *models.BudgetStatusItem
+		for i := range status {
+			if status[i].CategoryID != nil && *status[i].CategoryID == "00000000-0000-0000-0000-000000000204" {
+				row = &status[i]
+				break
+			}
+		}
+		if row == nil {
+			t.Fatal("expected Restaurants i oci row in status")
+		}
+		if row.Percent != 160.0 {
+			t.Errorf("percent = %f, want 160.0", row.Percent)
+		}
+		if row.Status != "over" {
+			t.Errorf("status = %q, want \"over\"", row.Status)
+		}
+		if row.RemainingCents != -3000 {
+			t.Errorf("remainingCents = %d, want -3000", row.RemainingCents)
 		}
 	})
 }

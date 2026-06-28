@@ -192,13 +192,21 @@ type UpdateBudgetReq struct {
 	AmountCents int `json:"amountCents"`
 }
 
-// BudgetStatusItem shows spending progress for one budget.
+// BudgetStatusItem shows spending progress for one budget or for one
+// expense category that has no budget yet (orphan row). For orphans,
+// BudgetID is empty and BudgetCents is 0 — the UI uses these as the
+// signal to render a "Create" form instead of "Update".
 type BudgetStatusItem struct {
-	Budget
-	SpentCents    int  `json:"spentCents"`
-	RemainingCents int `json:"remainingCents"`
-	PercentUsed   float64 `json:"percentUsed"`
-	OverBudget    bool `json:"overBudget"`
+	BudgetID       string  `json:"budgetId"`               // empty for orphans
+	CategoryID     *string `json:"categoryId"`             // nil for global
+	CategoryName   string  `json:"categoryName"`
+	CategoryColor  string  `json:"categoryColor,omitempty"` // empty for global
+	Month          string  `json:"month"`
+	BudgetCents    int     `json:"budgetCents"`             // 0 for orphans
+	SpentCents     int     `json:"spentCents"`
+	RemainingCents int     `json:"remainingCents"`
+	Percent        float64 `json:"percent"`                 // 0 for orphans
+	Status         string  `json:"status"`                  // on_track | warning | over
 }
 
 // ErrorResponse is the standard error payload.
