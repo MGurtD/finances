@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { Button, Card, formatMoney } from '@finances/ui';
+import { Button, Card, CategoryPicker, formatMoney } from '@finances/ui';
 import {
   useAccounts,
   useBulkCreateTransactions,
@@ -298,42 +298,14 @@ const lastResult = computed(() => {
                   {{ formatMoney(r.kind === 'income' ? r.amountCents : -r.amountCents, { showSign: true }) }}
                 </td>
                 <td class="px-3 py-2">
-                  <select
-                    :value="r.categoryId"
-                    class="w-full h-8 px-2 rounded bg-surface border focus:outline-none focus:border-accent text-xs"
-                    :class="
-                      r.categoryId === null
-                        ? 'border-warning'
-                        : r.suggestion.confidence === 'low'
-                          ? 'border-warning/70'
-                          : r.suggestion.confidence === 'medium'
-                            ? 'border-border'
-                            : 'border-border'
-                    "
-                    @change="(e) => setRowCategory(r.id, ((e.target as HTMLSelectElement).value || null))"
-                  >
-                    <option :value="null">— Sense categoria —</option>
-                    <!-- Phase 4: top-3 candidates grouped + tagged by confidence
-                         so the user sees the system's best guesses first. -->
-                    <template v-if="r.suggestion.candidates.length > 0">
-                      <option disabled value="">──── Suggeriments ────</option>
-                      <option
-                        v-for="c in r.suggestion.candidates"
-                        :key="'sug-' + c.id"
-                        :value="c.id"
-                      >
-                        {{ c.name }} ({{ confidenceLabel(c.score) }})
-                      </option>
-                      <option disabled value="">──── Totes ────</option>
-                    </template>
-                    <option
-                      v-for="c in (categories ?? []).filter((c) => !c.archived)"
-                      :key="c.id"
-                      :value="c.id"
-                    >
-                      {{ c.name }}
-                    </option>
-                  </select>
+                  <CategoryPicker
+                    :model-value="r.categoryId"
+                    :categories="(categories ?? []).filter((c) => !c.archived)"
+                    :kind="r.kind"
+                    size="sm"
+                    :placeholder="r.categoryId === null ? '— Sense categoria —' : undefined"
+                    @update:model-value="(v: string | null) => setRowCategory(r.id, v)"
+                  />
                   <p
                     v-if="r.suggestion.confidence === 'low'"
                     class="text-[10px] text-warning mt-1"
