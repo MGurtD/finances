@@ -11,3 +11,5 @@ export { default as Input } from './components/Input.vue';
 export { default as StatCard } from './components/StatCard.vue';
 export { default as CategoryPill } from './components/CategoryPill.vue';
 export { default as ThemeToggle } from './components/ThemeToggle.vue';
+export { default as CategoryPicker } from './components/CategoryPicker.vue';
+export type { CategoryOption } from './components/CategoryPicker.vue';
