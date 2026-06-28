@@ -18,11 +18,8 @@ coverage/
 *.tsbuildinfo
 *.d.ts
 !packages/**/*.d.ts
+!apps/web/src/api/schema.d.ts
 README.md
 node_modules.bak
-apps/api/
 scripts/
 docs/
-.deploy/
-deploy/
-docker/finances/api/

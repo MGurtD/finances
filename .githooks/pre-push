@@ -1,41 +1,70 @@
 #!/usr/bin/env bash
 # Pre-push hook: keep apps/web/src/api/schema.d.ts in sync with backend handlers.
 #
-# If any backend handler file (backend/internal/api/handlers/*.go) is newer than
-# apps/web/src/api/schema.d.ts, regenerate the schema, stage it, and abort the
-# push so the user can review the diff before committing.
+# If any backend handler (or main.go, which carries swag annotations) has been
+# modified more recently than apps/web/src/api/schema.d.ts, regenerate the
+# schema, stage it, and abort the push so the user can review the diff before
+# committing.
+#
+# Uses pure git plumbing (no `stat`, no `find -print0`) so it works the same
+# on Linux, macOS, Git Bash on Windows, and WSL.
 #
 # Enable with: git config core.hooksPath .githooks
 
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
-schema="$repo_root/apps/web/src/api/schema.d.ts"
-handlers_dir="$repo_root/backend/internal/api/handlers"
 
-if [ ! -d "$handlers_dir" ]; then
-  exit 0
+# Paths whose content influences the generated OpenAPI schema.
+tracked=(
+  "backend/internal/api/handlers"
+  "backend/cmd/server/main.go"
+)
+schema="apps/web/src/api/schema.d.ts"
+
+# --- decision: does the schema need regenerating? --------------------------
+needs_regen=0
+
+# Case 1: schema is missing or not tracked by git. Without a tracked
+# baseline we can't prove the schema is in sync — regenerate to be safe.
+if [ ! -f "$repo_root/$schema" ] \
+   || ! git -C "$repo_root" ls-files --error-unmatch -- "$schema" >/dev/null 2>&1; then
+  needs_regen=1
 fi
 
-needs_regen=0
-if [ ! -f "$schema" ]; then
+# Case 2: working tree (staged or unstaged) has uncommitted changes in any
+# tracked path. `git diff HEAD` covers both kinds of modifications.
+if [ "$needs_regen" -eq 0 ] \
+   && ! git -C "$repo_root" diff --quiet HEAD -- "${tracked[@]}" 2>/dev/null; then
   needs_regen=1
-else
-  schema_mtime=$(stat -c %Y "$schema" 2>/dev/null || stat -f %m "$schema")
-  while IFS= read -r -d '' handler; do
-    handler_mtime=$(stat -c %Y "$handler" 2>/dev/null || stat -f %m "$handler")
-    if [ "$handler_mtime" -gt "$schema_mtime" ]; then
-      needs_regen=1
-      break
-    fi
-  done < <(find "$handlers_dir" -maxdepth 1 -type f -name '*.go' -print0)
+fi
+
+# Case 3: committed handler change is newer than the latest schema commit.
+# (Only meaningful when both have git history.)
+if [ "$needs_regen" -eq 0 ]; then
+  schema_commit=$(git -C "$repo_root" log -1 --format=%H -- "$schema" 2>/dev/null || true)
+  latest_commit=$(git -C "$repo_root" log -1 --format=%H -- "${tracked[@]}" 2>/dev/null || true)
+  if [ -z "$schema_commit" ] || [ -z "$latest_commit" ]; then
+    needs_regen=1
+  elif ! git -C "$repo_root" merge-base --is-ancestor "$latest_commit" "$schema_commit" 2>/dev/null; then
+    needs_regen=1
+  fi
 fi
 
 if [ "$needs_regen" -eq 0 ]; then
   exit 0
 fi
 
-echo "pre-push: schema.d.ts is older than backend handlers — regenerating..." >&2
+# --- snapshot pre-regen content -------------------------------------------
+# Used after regen to detect a no-op (file content didn't actually change).
+if [ -f "$repo_root/$schema" ]; then
+  schema_before=$(sha256sum "$repo_root/$schema" 2>/dev/null | awk '{print $1}')
+else
+  schema_before=""
+fi
+
+# --- regenerate -----------------------------------------------------------
+echo "pre-push: regenerating schema.d.ts..." >&2
 
 (
   cd "$repo_root"
@@ -44,7 +73,15 @@ echo "pre-push: schema.d.ts is older than backend handlers — regenerating..." 
   (cd apps/web && pnpm gen:api) >&2
 )
 
-git -C "$repo_root" add -f apps/web/src/api/schema.d.ts
+# --- verify: did the regen actually change anything? ----------------------
+schema_after=$(sha256sum "$repo_root/$schema" 2>/dev/null | awk '{print $1}')
+if [ "$schema_before" = "$schema_after" ]; then
+  # No content change — was a false alarm, don't bother the user.
+  exit 0
+fi
+
+# Real drift (or schema was missing/untracked). Stage for the user to review.
+git -C "$repo_root" add -f "$schema"
 
 cat >&2 <<'EOF'
 pre-push: schema.d.ts has been regenerated and staged (not committed).
