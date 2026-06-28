@@ -3,7 +3,8 @@ import { parseOfx } from './ofx';
 import { tradeRepublicImporter } from './tradeRepublic';
 import type { Importer, ImporterSuggestion, ParsedRow } from './types';
 
-export { parseAmountCents, rowImportHash } from './genericCsv';
+export { parseAmountCents, rowImportHash, parseCsv } from './genericCsv';
+export { parseOfx } from './ofx';
 export type { Importer, ImporterSuggestion, ParsedRow } from './types';
 export type { TransactionKind } from '@/api/types';
 
@@ -62,6 +63,22 @@ export const importers: Importer[] = [
   genericCsvImporter,
   ofxImporter,
 ];
+
+export type ImportFormat = 'csv' | 'ofx' | 'unknown';
+
+/**
+ * Legacy format detector — preserved for callers (and tests) that want
+ * the simple 'csv' | 'ofx' | 'unknown' answer without picking an
+ * importer. Mirrors the pre-registry semantics: extension first, OFX
+ * magic header as fallback, default to 'csv'.
+ */
+export function detectFormat(filename: string, content: string): ImportFormat {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith('.ofx') || lower.endsWith('.qfx')) return 'ofx';
+  if (lower.endsWith('.csv') || lower.endsWith('.txt')) return 'csv';
+  if (content.trimStart().startsWith('OFXHEADER')) return 'ofx';
+  return 'csv';
+}
 
 /**
  * Score every importer against `filename` + `content`, return the
