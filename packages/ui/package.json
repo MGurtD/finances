@@ -14,9 +14,9 @@
   },
   "dependencies": {
     "@radix-icons/vue": "^1.0.0",
+    "@vueuse/core": "^11.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
-    "reka-ui": "^1.0.0-alpha.0",
     "tailwind-merge": "^2.5.0"
   },
   "peerDependencies": {
