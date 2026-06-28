@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { Button, Card, Input, formatMoney, parseMoneyInput } from '@finances/ui';
+import { Button, Card, CategoryPicker, Input, formatMoney, parseMoneyInput } from '@finances/ui';
 import type { Category } from '@/api/types';
 import { useAddMovementStore } from '@/stores/addMovement';
 import { useAccounts, useCategories, useCreateTransaction } from '@/composables/queries';
@@ -165,17 +165,13 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
           />
 
           <div class="flex flex-col gap-1.5">
-            <label for="am-category" class="text-sm font-medium text-ink">Categoria</label>
-            <select
-              id="am-category"
+            <label class="text-sm font-medium text-ink">Categoria</label>
+            <CategoryPicker
               v-model="categoryId"
-              class="h-11 px-3 rounded-md bg-surface text-ink border border-border focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
-            >
-              <option :value="null">— Sense categoria —</option>
-              <option v-for="cat in availableCategories" :key="cat.id" :value="cat.id">
-                {{ cat.name }}
-              </option>
-            </select>
+              :categories="availableCategories"
+              :kind="kind"
+              placeholder="Selecciona categoria…"
+            />
           </div>
 
           <div class="flex flex-col gap-1.5">

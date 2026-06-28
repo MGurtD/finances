@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Card, Button, formatMoney } from '@finances/ui';
+import { Card, Button, CategoryPicker, formatMoney } from '@finances/ui';
 import { useAddMovementStore } from '@/stores/addMovement';
 import { useMonth } from '@/composables/useMonth';
 import {
@@ -68,21 +68,17 @@ function cancelEdit() {
 async function changeCategory(
   transactionId: string,
   description: string,
-  categoryId: string,
+  categoryId: string | null,
 ) {
-  // `categoryId` is the literal string "null" when the user picks
-  // "— Sense categoria —" (the option's value). We translate that into
-  // a real null before sending to the API.
-  const realId: string | null = categoryId === 'null' ? null : categoryId;
   await upd.mutateAsync({
     id: transactionId,
-    categoryId: realId,
+    categoryId,
   });
   // Record a learned rule only when the user actively chose a category.
   // Removing the category should NOT pollute the learned store — if they
   // re-import the same description we still want our best guess.
-  if (realId) {
-    recordLearnedRule(description, realId);
+  if (categoryId) {
+    recordLearnedRule(description, categoryId);
   }
   editingId.value = null;
 }
@@ -94,7 +90,7 @@ async function changeCategory(
 // you realise 10 supermarket rows ended up under "Altres" — pick
 // them all and bulk-fix in one click.
 const selectedIds = ref<Set<string>>(new Set());
-const bulkCategoryId = ref<string>('');
+const bulkCategoryId = ref<string | null>(null);
 
 function toggleSelected(id: string) {
   const next = new Set(selectedIds.value);
@@ -105,13 +101,12 @@ function toggleSelected(id: string) {
 
 function clearSelection() {
   selectedIds.value = new Set();
-  bulkCategoryId.value = '';
+  bulkCategoryId.value = null;
 }
 
 async function applyBulkCategory() {
   if (!bulkCategoryId.value || selectedIds.value.size === 0) return;
-  const newId: string | null =
-    bulkCategoryId.value === 'null' ? null : bulkCategoryId.value;
+  const newId: string | null = bulkCategoryId.value;
   const targets = (transactions.value ?? []).filter((t) =>
     selectedIds.value.has(t.id),
   );
@@ -212,21 +207,15 @@ watch(
             {{ allSelected ? 'Desseleccionar tots' : 'Seleccionar tots' }}
           </button>
           <label class="text-xs text-ink-subtle" for="bulk-cat">Categoria:</label>
-          <select
-            id="bulk-cat"
-            v-model="bulkCategoryId"
-            class="h-9 px-3 rounded-md bg-surface text-ink border border-border focus:outline-none focus:border-accent text-sm"
-          >
-            <option value="">— Tria categoria —</option>
-            <option value="null">— Sense categoria —</option>
-            <option
-              v-for="c in (categories ?? []).filter((c) => !c.archived)"
-              :key="c.id"
-              :value="c.id"
-            >
-              {{ c.name }}
-            </option>
-          </select>
+          <div class="w-56">
+            <CategoryPicker
+              id="bulk-cat"
+              v-model="bulkCategoryId"
+              :categories="(categories ?? []).filter((c) => !c.archived)"
+              size="sm"
+              placeholder="— Tria categoria —"
+            />
+          </div>
           <Button
             size="sm"
             :disabled="!bulkCategoryId || upd.isPending.value || bulkDel.isPending.value"
@@ -293,22 +282,16 @@ watch(
                   <p class="text-sm font-medium truncate">{{ t.description || categoryFor(t.categoryId).name }}</p>
 
                   <!-- Inline category editor -->
-                  <div v-if="editingId === t.id" class="mt-1.5 flex items-center gap-2">
-                    <select
-                      :value="t.categoryId ?? 'null'"
-                      class="h-8 px-2 rounded bg-surface text-ink border border-accent focus:outline-none text-xs"
-                      @change="(e) => changeCategory(t.id, t.description, (e.target as HTMLSelectElement).value)"
-                      @click.stop
-                    >
-                      <option value="null">— Sense categoria —</option>
-                      <option
-                        v-for="c in (categories ?? []).filter((c) => !c.archived)"
-                        :key="c.id"
-                        :value="c.id"
-                      >
-                        {{ c.name }}
-                      </option>
-                    </select>
+                  <div v-if="editingId === t.id" class="mt-1.5 flex items-center gap-2" @click.stop>
+                    <div class="w-48">
+                      <CategoryPicker
+                        :model-value="t.categoryId"
+                        :categories="(categories ?? []).filter((c) => !c.archived)"
+                        size="sm"
+                        placeholder="— Sense categoria —"
+                        @update:model-value="(v: string | null) => changeCategory(t.id, t.description, v)"
+                      />
+                    </div>
                     <button
                       type="button"
                       class="text-xs text-ink-subtle hover:text-ink px-2 py-1 rounded"
