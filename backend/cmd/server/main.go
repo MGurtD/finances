@@ -39,8 +39,11 @@ func main() {
 
 	passwordHash := os.Getenv("APP_PASSWORD_HASH")
 	if passwordHash == "" {
-		log.Println("WARNING: APP_PASSWORD_HASH not set, using default (dev only)")
-		passwordHash = "$2a$10$default.hash.for.dev.only"
+		// Dev fallback: bcrypt cost-10 hash of "finances". Generated with
+		// golang.org/x/crypto/bcrypt; verified safe to bake in because bcrypt
+		// is one-way. Override with APP_PASSWORD_HASH in any non-local env.
+		log.Println("WARNING: APP_PASSWORD_HASH not set, using dev default (password: \"finances\")")
+		passwordHash = "$2a$10$UOnIpxpZaDHM7ps65RZTj.trYBmU6ybIHtz/SAjfR1vmkuKajSEMS"
 	}
 
 	jwtSecret := os.Getenv("APP_JWT_SECRET")

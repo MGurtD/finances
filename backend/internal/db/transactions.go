@@ -241,10 +241,12 @@ func (t *TransactionsStore) HasAny() (bool, error) {
 }
 
 // BulkCreate inserts multiple transactions, skipping those with importHash duplicates.
-// Returns the count of actually inserted transactions.
-func (t *TransactionsStore) BulkCreate(req models.BulkCreateReq) (int, error) {
+// Returns inserted and skipped counts. skipped counts every row whose importHash
+// matched an existing row in the DB — including rows that had no importHash set
+// (always inserted, never skipped).
+func (t *TransactionsStore) BulkCreate(req models.BulkCreateReq) (inserted int, skipped int, err error) {
 	if len(req.Transactions) == 0 {
-		return 0, nil
+		return 0, 0, nil
 	}
 
 	// Collect all importHashes to check for existing duplicates
@@ -257,7 +259,7 @@ func (t *TransactionsStore) BulkCreate(req models.BulkCreateReq) (int, error) {
 			var count int
 			err := t.DB.QueryRow("SELECT COUNT(*) FROM transactions WHERE import_hash = ?", hashStr).Scan(&count)
 			if err != nil {
-				return 0, err
+				return 0, 0, err
 			}
 			if count > 0 {
 				existingHashes[*tx.ImportHash] = true
@@ -266,11 +268,11 @@ func (t *TransactionsStore) BulkCreate(req models.BulkCreateReq) (int, error) {
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	inserted := 0
 
 	for _, item := range req.Transactions {
 		if item.ImportHash != nil && existingHashes[*item.ImportHash] {
-			continue // skip duplicate
+			skipped++
+			continue
 		}
 
 		id := uuid.New().String()
@@ -281,18 +283,18 @@ func (t *TransactionsStore) BulkCreate(req models.BulkCreateReq) (int, error) {
 			importHashStr = &s
 		}
 
-		_, err := t.DB.Exec(`
+		_, err = t.DB.Exec(`
 			INSERT INTO transactions (id, account_id, category_id, kind, amount, description, notes, date, import_hash, transfer_account_id, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, item.AccountID, item.CategoryID, item.Kind, item.Amount,
 			item.Description, item.Notes, item.Date, importHashStr, item.TransferAccountID, now, now)
 		if err != nil {
-			return inserted, err
+			return inserted, skipped, err
 		}
 		inserted++
 	}
 
-	return inserted, nil
+	return inserted, skipped, nil
 }
 
 // Recent returns the most recent transactions with account and category names.

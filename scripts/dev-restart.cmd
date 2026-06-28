@@ -96,9 +96,10 @@ if "%DO_BACKEND%"=="1" (
     popd >nul
     echo     ^>^> %BIN_PATH%
 
-    echo [backend] arrencant ^(logs: %LOG_DIR%\backend.log^)^...
-    powershell -NoProfile -Command ^
-        "Start-Process -FilePath '%BIN_PATH%' -RedirectStandardOutput '%LOG_DIR%\backend.log' -RedirectStandardError '%LOG_DIR%\backend.err' -WorkingDirectory '%BACKEND_DIR%'"
+    echo [backend] arrencant (logs: %LOG_DIR%\backend.log)
+    pushd "%BACKEND_DIR%" >nul
+    start "finances-backend" /B "%BIN_PATH%" 1> "%LOG_DIR%\backend.log" 2> "%LOG_DIR%\backend.err"
+    popd >nul
 
     REM espera el port amb un bucle finit (for /l evita problemes amb set /a)
     set "BE_UP=0"
@@ -129,10 +130,9 @@ if "%DO_WEB%"=="1" (
     if "%KILLED%"=="0" echo     ^(ningu escolta a :5173^)
     timeout /t 2 /nobreak >nul
 
-    echo [web] arrencant ^(logs: %LOG_DIR%\web.log^)^...
+    echo [web] arrencant (logs: %LOG_DIR%\web.log)
     pushd "%WEB_DIR%" >nul
-    powershell -NoProfile -Command ^
-        "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c','pnpm dev > \"%LOG_DIR%\web.log\" 2>&1' -WorkingDirectory '%WEB_DIR%' -NoNewWindow"
+    start "finances-web" /B cmd.exe /c "pnpm dev > %LOG_DIR%\web.log 2>&1"
     popd >nul
 
     set "WE_UP=0"

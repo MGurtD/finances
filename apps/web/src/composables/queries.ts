@@ -8,6 +8,7 @@ import type {
   AuthStatusResponse,
   BudgetProgress,
   BulkCreateInput,
+  BulkCreateResult,
   BulkDeleteInput,
   BulkDeleteResult,
   Category,
@@ -274,7 +275,7 @@ export function useDeleteBudget() {
 export function useBulkCreateTransactions() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: BulkCreateInput) => post<{ created: number; skipped: number; errors: number }>('/transactions/bulk', input),
+    mutationFn: (input: BulkCreateInput) => post<BulkCreateResult>('/transactions/bulk', input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['transactions'] });
       void qc.invalidateQueries({ queryKey: ['dashboard'] });
