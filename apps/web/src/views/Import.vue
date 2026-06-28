@@ -7,12 +7,21 @@ import {
   useCategories,
   useTransactionsList,
 } from '@/composables/queries';
-import { parseFile, type ParsedRow } from '@/utils/importParsers';
 import { autoCategorize, type Categorisation } from '@/utils/autoCategorize';
 import { autoCategorizeCached, clearCategorisationCache } from '@/utils/autoCategorize/cache';
 import { recordLearnedRule } from '@/utils/autoCategorize/learnedRules';
+import {
+  confidenceLabel,
+  detectFormat,
+  importers,
+  parseWith,
+  suggestImporter,
+  type ImporterSuggestion,
+  type ParsedRow,
+} from '@/utils/importers';
+import { buildBulkPayload } from '@/utils/importers/payload';
 
-type Step = 'upload' | 'preview' | 'done';
+type Step = 'upload' | 'confirm' | 'preview' | 'done';
 
 interface EditableRow extends ParsedRow {
   id: string;
@@ -41,6 +50,28 @@ const { data: categories } = useCategories();
 const bulk = useBulkCreateTransactions();
 
 const rows = ref<EditableRow[]>([]);
+
+// ── Suggestion state ────────────────────────────────────────────────────────
+// `loadFile` only reads the file and asks the registry to score each
+// importer; parsing + categorisation wait for the user to confirm the
+// chosen importer on the next step. This split keeps the suggestion
+// cheap (string scan, no CSV parse) and lets the user override the
+// detected format without re-dropping the file.
+const rawContent = ref<string>('');
+const suggestion = ref<ImporterSuggestion | null>(null);
+const selectedImporterId = ref<string | null>(null);
+
+const confidenceByImporter = computed(() => {
+  const map: Record<string, number> = {};
+  if (!suggestion.value) return map;
+  for (const a of suggestion.value.alternatives) {
+    map[a.importer.id] = a.confidence;
+  }
+  if (suggestion.value.primary) {
+    map[suggestion.value.primary.id] = suggestion.value.confidence;
+  }
+  return map;
+});
 
 // Probe existing transactions to tell the user how many rows are duplicates
 // before they commit. Limited to the file's date range + selected account so
@@ -128,21 +159,49 @@ function onPick(e: Event) {
   target.value = '';
 }
 
+/**
+ * Step 1: read the file as text, ask the registry to score each
+ * importer, present the suggestion. NO parsing yet — the user must
+ * confirm (or override) the chosen importer before any work is done.
+ */
 async function loadFile(file: File) {
   errorMsg.value = null;
   filename.value = file.name;
   try {
     const text = await file.text();
-    const parsed = await parseFile(file.name, text);
-    format.value = parsed.format;
-    if (parsed.format === 'unknown' || parsed.rows.length === 0) {
+    rawContent.value = text;
+    format.value = detectFormat(file.name, text);
+    suggestion.value = suggestImporter(file.name, text);
+    selectedImporterId.value = suggestion.value.primary?.id ?? null;
+    step.value = 'confirm';
+  } catch (err) {
+    errorMsg.value = err instanceof Error ? err.message : "Error llegint el fitxer";
+  }
+}
+
+/**
+ * Step 2 (after the user clicks "Continuar"): parse with the chosen
+ * importer, then run autoCategorizeCached. Switching importer means
+ * re-running this whole function — the categorisation is per-importer.
+ */
+async function confirmImporter() {
+  const importerId = selectedImporterId.value;
+  if (!importerId) {
+    errorMsg.value = "Selecciona un importador per continuar.";
+    return;
+  }
+  errorMsg.value = null;
+  try {
+    const parsed = await parseWith(importerId, rawContent.value);
+    if (parsed.length === 0) {
       errorMsg.value = 'No hem pogut extreure cap fila. Comprova el format.';
+      step.value = 'confirm';
       return;
     }
     // Phase 5: wipe the categorisation cache so user corrections from
     // a previous import take effect for the current one.
     clearCategorisationCache();
-    rows.value = parsed.rows.map((r) => {
+    rows.value = parsed.map((r) => {
       const suggestion = autoCategorizeCached({
         description: r.description,
         amountCents: r.amountCents,
@@ -161,7 +220,8 @@ async function loadFile(file: File) {
     }
     step.value = 'preview';
   } catch (err) {
-    errorMsg.value = err instanceof Error ? err.message : "Error llegint el fitxer";
+    errorMsg.value = err instanceof Error ? err.message : "Error important el fitxer";
+    step.value = 'confirm';
   }
 }
 
@@ -170,21 +230,21 @@ function cancel() {
   rows.value = [];
   filename.value = '';
   format.value = 'unknown';
+  rawContent.value = '';
+  suggestion.value = null;
+  selectedImporterId.value = null;
   errorMsg.value = null;
+}
+
+function backToConfirm() {
+  step.value = 'confirm';
+  rows.value = [];
 }
 
 async function commitImport() {
   if (!selectedAccountId.value || rows.value.length === 0) return;
-  const result = await bulk.mutateAsync({
-    transactions: rows.value.map((r) => ({
-      accountId: selectedAccountId.value!,
-      categoryId: r.categoryId,
-      kind: r.kind,
-      amount: r.kind === 'expense' ? -Math.abs(r.amountCents) : Math.abs(r.amountCents),
-      description: r.description,
-      date: r.date,
-    })),
-  });
+  const payload = buildBulkPayload(selectedAccountId.value, rows.value);
+  const result = await bulk.mutateAsync(payload);
   step.value = 'done';
   // Stash the result count for display on the done step.
   (window as unknown as { __lastImportResult?: typeof result }).__lastImportResult = result;
@@ -195,25 +255,21 @@ function reset() {
   rows.value = [];
   filename.value = '';
   format.value = 'unknown';
+  rawContent.value = '';
+  suggestion.value = null;
+  selectedImporterId.value = null;
   errorMsg.value = null;
-}
-
-/**
- * Map a candidate score (0–1) to a short confidence label for the dropdown.
- * Keeps the dropdown readable — three-letter codes are easier to scan than
- * percentages.
- */
-function confidenceLabel(score: number): string {
-  if (score >= 0.78) return 'alta';
-  if (score >= 0.55) return 'mitja';
-  if (score >= 0.32) return 'baixa';
-  return 'mín.';
 }
 
 const lastResult = computed(() => {
   if (step.value !== 'done') return null;
-  return (window as unknown as { __lastImportResult?: { created: number; skipped: number; errors: number } }).__lastImportResult ?? null;
+  return (window as unknown as { __lastImportResult?: { inserted: number; skipped: number } }).__lastImportResult ?? null;
 });
+
+// Silence the unused-import warning for autoCategorize (still imported by
+// autoCategorizeCached transitively) — kept in case future refactors
+// need direct access.
+void autoCategorize;
 </script>
 
 <template>
@@ -240,7 +296,7 @@ const lastResult = computed(() => {
             </span>
           </label>
           <p class="text-xs text-ink-subtle mt-3">
-            Formats suportats: CSV genèric (CaixaBank, BBVA, Sabadell, ABANCA…) i OFX/QFX.
+            Formats suportats: CSV genèric (CaixaBank, BBVA, Sabadell, ABANCA…), OFX/QFX i exportacions de Trade Republic.
           </p>
         </div>
 
@@ -252,7 +308,54 @@ const lastResult = computed(() => {
         </div>
       </Card>
 
-      <!-- Step 2: Preview -->
+      <!-- Step 2: Confirm importer -->
+      <Card v-else-if="step === 'confirm'" padding="lg">
+        <header class="mb-4">
+          <p class="font-medium">{{ filename }}</p>
+          <p class="text-xs text-ink-subtle">{{ format.toUpperCase() }}</p>
+        </header>
+
+        <div v-if="suggestion?.primary" class="rounded-md border border-border p-4 mb-4 bg-surface-2/50">
+          <p class="text-sm">
+            Sembla un
+            <span class="font-medium">{{ suggestion.primary.label }}</span>
+            · confiança <span class="font-medium">{{ confidenceLabel(suggestion.confidence) }}</span>
+            <span class="text-ink-subtle">({{ Math.round(suggestion.confidence * 100) }}%)</span>
+          </p>
+        </div>
+        <div v-else class="rounded-md border border-warning/40 bg-warning/5 p-4 mb-4 text-sm">
+          No hem pogut identificar el format del fitxer. Tria un importador manualment.
+        </div>
+
+        <label class="block text-sm text-ink-muted mb-2" for="imp-importer">Importador:</label>
+        <select
+          id="imp-importer"
+          v-model="selectedImporterId"
+          class="w-full h-10 px-3 rounded-md bg-surface text-ink border border-border focus:outline-none focus:border-accent text-sm"
+        >
+          <option
+            v-for="imp in importers"
+            :key="imp.id"
+            :value="imp.id"
+          >
+            {{ imp.label }} — {{ confidenceLabel(confidenceByImporter[imp.id] ?? 0) }}
+          </option>
+        </select>
+        <p class="text-xs text-ink-subtle mt-2">
+          Cada importador mostra la confiança que el registre ha calculat per aquest fitxer.
+        </p>
+
+        <p v-if="errorMsg" class="text-sm text-negative mt-4">{{ errorMsg }}</p>
+
+        <div class="flex items-center gap-2 justify-end mt-4">
+          <Button variant="ghost" @click="cancel">Cancel·lar</Button>
+          <Button :disabled="!selectedImporterId" @click="confirmImporter">
+            Continuar
+          </Button>
+        </div>
+      </Card>
+
+      <!-- Step 3: Preview -->
       <Card v-else-if="step === 'preview'" padding="lg">
         <header class="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
@@ -335,6 +438,7 @@ const lastResult = computed(() => {
         <p v-if="errorMsg" class="text-sm text-negative mt-3">{{ errorMsg }}</p>
 
         <div class="flex items-center gap-2 justify-end mt-4">
+          <Button variant="ghost" :disabled="bulk.isPending.value" @click="backToConfirm">Tornar</Button>
           <Button variant="ghost" :disabled="bulk.isPending.value" @click="cancel">Cancel·lar</Button>
           <Button
             :disabled="!selectedAccountId || rows.length === 0 || bulk.isPending.value || newRowCount === 0"
@@ -352,28 +456,23 @@ const lastResult = computed(() => {
         </div>
       </Card>
 
-      <!-- Step 3: Done -->
+      <!-- Step 4: Done -->
       <Card v-else padding="lg">
         <div class="text-center py-6 space-y-4">
           <h2 class="font-semibold text-finance-lg">
-            <span v-if="lastResult && lastResult.created > 0">Importació completada</span>
-            <span v-else-if="lastResult && lastResult.errors > 0">No s'ha pogut importar</span>
+            <span v-if="lastResult && lastResult.inserted > 0">Importació completada</span>
             <span v-else>Res nou per importar</span>
           </h2>
           <p v-if="lastResult" class="text-sm text-ink-muted">
-            <template v-if="lastResult.created > 0">
-              <span class="text-positive font-medium">{{ lastResult.created }}</span> moviments nous importats
-            </template>
-            <template v-else-if="lastResult.errors > 0">
-              <span class="text-negative font-medium">{{ lastResult.errors }}</span> errors —
-              <span class="text-ink-subtle">revisa el format i torna-ho a provar</span>
+            <template v-if="lastResult.inserted > 0">
+              <span class="text-positive font-medium">{{ lastResult.inserted }}</span> moviments nous importats
             </template>
             <template v-else>
               Tots els <span class="text-ink font-medium">{{ lastResult.skipped }}</span>
               moviments del fitxer ja existien al compte seleccionat.
             </template>
           </p>
-          <p v-if="lastResult && lastResult.skipped > 0 && lastResult.created > 0" class="text-xs text-ink-subtle">
+          <p v-if="lastResult && lastResult.skipped > 0 && lastResult.inserted > 0" class="text-xs text-ink-subtle">
             A més, {{ lastResult.skipped }} duplicats saltats.
           </p>
           <div class="flex items-center gap-2 justify-center">

@@ -5,6 +5,8 @@ import type { Importer, ImporterSuggestion, ParsedRow } from './types';
 
 export { parseAmountCents, rowImportHash, parseCsv } from './genericCsv';
 export { parseOfx } from './ofx';
+export { confidenceLabel } from './confidence';
+export { buildBulkPayload, type EditableRowLike } from './payload';
 export type { Importer, ImporterSuggestion, ParsedRow } from './types';
 export type { TransactionKind } from '@/api/types';
 
