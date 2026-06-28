@@ -196,12 +196,12 @@ func (h *TransactionsHandler) BulkCreate(c *gin.Context) {
 		return
 	}
 
-	count, err := h.Server.Store.Transactions.BulkCreate(req)
+	inserted, skipped, err := h.Server.Store.Transactions.BulkCreate(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "failed to create transactions"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"inserted": count})
+	c.JSON(http.StatusOK, gin.H{"inserted": inserted, "skipped": skipped})
 }
 
 // BulkDelete godoc

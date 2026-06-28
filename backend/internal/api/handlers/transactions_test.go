@@ -86,6 +86,7 @@ func testTransactionsServer(t *testing.T) (*gin.Engine, *db.Store) {
 
 	txHandler := NewTransactionsHandler(srv)
 	r.POST("/api/transactions", txHandler.Create)
+	r.POST("/api/transactions/bulk", txHandler.BulkCreate)
 	r.POST("/api/transactions/bulk-delete", txHandler.BulkDelete)
 
 	return r, store
@@ -196,6 +197,101 @@ func TestBulkDelete_HTTP(t *testing.T) {
 			t.Errorf("status = %d, want 401", w.Code)
 		}
 	})
+}
+
+// TestBulkCreate_HTTP exercises the full BulkCreate HTTP route to lock in
+// the {inserted, skipped} response shape and the dedup activation wired
+// through SHA256(importHash).
+func TestBulkCreate_HTTP(t *testing.T) {
+	r, store := testTransactionsServer(t)
+	cookie := login(t, r)
+
+	// Discover the seeded account id (single helper call shared across subtests).
+	listReq := httptest.NewRequest(http.MethodGet, "/api/accounts", nil)
+	listReq.Header.Set("Cookie", "finances_session="+cookie)
+	listW := httptest.NewRecorder()
+	r.ServeHTTP(listW, listReq)
+	if listW.Code != http.StatusOK {
+		t.Fatalf("list accounts: %d %s", listW.Code, listW.Body.String())
+	}
+	var accounts []struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(listW.Body.Bytes(), &accounts); err != nil {
+		t.Fatalf("unmarshal accounts: %v", err)
+	}
+	if len(accounts) == 0 {
+		t.Fatal("no seeded accounts")
+	}
+	accountID := accounts[0].ID
+
+	postBulk := func(t *testing.T, body []byte) (int, map[string]int) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/api/transactions/bulk", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Cookie", "finances_session="+cookie)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		var resp map[string]int
+		_ = json.Unmarshal(w.Body.Bytes(), &resp)
+		return w.Code, resp
+	}
+
+	t.Run("returns inserted count and skipped=0 on first import", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{
+			"transactions": []map[string]any{
+				{"accountId": accountID, "kind": "expense", "amount": -10, "date": "2026-04-01", "importHash": "http-h-001"},
+				{"accountId": accountID, "kind": "expense", "amount": -20, "date": "2026-04-02", "importHash": "http-h-002"},
+			},
+		})
+		code, resp := postBulk(t, body)
+		if code != http.StatusOK {
+			t.Fatalf("status = %d, want 200. body=%s", code, string(body))
+		}
+		if resp["inserted"] != 2 {
+			t.Errorf("inserted = %d, want 2", resp["inserted"])
+		}
+		if resp["skipped"] != 0 {
+			t.Errorf("skipped = %d, want 0", resp["skipped"])
+		}
+	})
+
+	t.Run("re-importing the same hashes returns inserted=0, skipped=N", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{
+			"transactions": []map[string]any{
+				{"accountId": accountID, "kind": "expense", "amount": -10, "date": "2026-04-01", "importHash": "http-h-001"},
+				{"accountId": accountID, "kind": "expense", "amount": -20, "date": "2026-04-02", "importHash": "http-h-002"},
+			},
+		})
+		code, resp := postBulk(t, body)
+		if code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", code)
+		}
+		if resp["inserted"] != 0 {
+			t.Errorf("inserted = %d, want 0 (dedup)", resp["inserted"])
+		}
+		if resp["skipped"] != 2 {
+			t.Errorf("skipped = %d, want 2 (dedup)", resp["skipped"])
+		}
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{
+			"transactions": []map[string]any{
+				{"accountId": accountID, "kind": "expense", "amount": -1, "date": "2026-04-01"},
+			},
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/transactions/bulk", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
+		}
+	})
+
+	// Silence the unused import for `store` in case future tests need it.
+	_ = store
 }
 
 // createThreeViaHTTP creates three transactions through the real handler

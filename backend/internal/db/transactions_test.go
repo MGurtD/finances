@@ -1,6 +1,8 @@
 package db
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -181,7 +183,7 @@ func TestTransactions_BulkCreate_Dedup(t *testing.T) {
 	store, cleanup := testDB(t)
 	defer cleanup()
 
-	t.Run("skips duplicate importHash", func(t *testing.T) {
+	t.Run("skips duplicate importHash and returns skipped count", func(t *testing.T) {
 		hash := "batch-001"
 		req := models.BulkCreateReq{
 			Transactions: []models.BulkCreateItem{
@@ -191,28 +193,85 @@ func TestTransactions_BulkCreate_Dedup(t *testing.T) {
 			},
 		}
 
-		// First bulk create: all 3 should be inserted
-		count, err := store.Transactions.BulkCreate(req)
+		// First bulk create: all 3 should be inserted, 0 skipped
+		inserted, skipped, err := store.Transactions.BulkCreate(req)
 		if err != nil {
 			t.Fatalf("BulkCreate failed: %v", err)
 		}
-		if count != 3 {
-			t.Errorf("first bulk create count = %d, want 3", count)
+		if inserted != 3 {
+			t.Errorf("first bulk create inserted = %d, want 3", inserted)
+		}
+		if skipped != 0 {
+			t.Errorf("first bulk create skipped = %d, want 0", skipped)
 		}
 
-		// Second bulk create with same hashes: all should be skipped
-		count, err = store.Transactions.BulkCreate(req)
+		// Second bulk create with same hashes: all 3 should be skipped
+		inserted, skipped, err = store.Transactions.BulkCreate(req)
 		if err != nil {
 			t.Fatalf("BulkCreate second call failed: %v", err)
 		}
-		if count != 0 {
-			t.Errorf("second bulk create count = %d, want 0 (dedup)", count)
+		if inserted != 0 {
+			t.Errorf("second bulk create inserted = %d, want 0 (dedup)", inserted)
+		}
+		if skipped != 3 {
+			t.Errorf("second bulk create skipped = %d, want 3 (dedup)", skipped)
 		}
 
 		// Verify only 3 transactions exist total
 		has, _ := store.Transactions.HasAny()
 		if !has {
 			t.Error("HasAny = false, want true after bulk create")
+		}
+	})
+
+	t.Run("returns mixed counts when some hashes are new and some duplicate", func(t *testing.T) {
+		newHash := "batch-mixed-new"
+		existingHash := "batch-mixed-existing"
+		// Pre-insert one row with the SHA256(existingHash) so dedup can match.
+		h := sha256.Sum256([]byte(existingHash))
+		existingHashHex := hex.EncodeToString(h[:])
+		_, err := store.DB.Exec(`
+			INSERT INTO transactions (id, account_id, kind, amount, description, date, import_hash, created_at, updated_at)
+			VALUES ('pre-existing', '00000000-0000-0000-0000-000000000001', 'expense', -50, '', '2026-01-01', ?, '2026-01-01', '2026-01-01')`,
+			existingHashHex)
+		if err != nil {
+			t.Fatalf("pre-insert failed: %v", err)
+		}
+		req := models.BulkCreateReq{
+			Transactions: []models.BulkCreateItem{
+				{AccountID: "00000000-0000-0000-0000-000000000001", Kind: "expense", Amount: -11, Date: "2026-02-01", ImportHash: &newHash},
+				{AccountID: "00000000-0000-0000-0000-000000000001", Kind: "expense", Amount: -22, Date: "2026-02-02", ImportHash: &existingHash},
+			},
+		}
+
+		inserted, skipped, err := store.Transactions.BulkCreate(req)
+		if err != nil {
+			t.Fatalf("BulkCreate mixed failed: %v", err)
+		}
+		if inserted != 1 {
+			t.Errorf("inserted = %d, want 1 (only the new hash)", inserted)
+		}
+		if skipped != 1 {
+			t.Errorf("skipped = %d, want 1 (the existing hash)", skipped)
+		}
+	})
+
+	t.Run("inserts all when no importHash is provided", func(t *testing.T) {
+		req := models.BulkCreateReq{
+			Transactions: []models.BulkCreateItem{
+				{AccountID: "00000000-0000-0000-0000-000000000001", Kind: "expense", Amount: -1, Date: "2026-03-01"},
+				{AccountID: "00000000-0000-0000-0000-000000000001", Kind: "expense", Amount: -2, Date: "2026-03-02"},
+			},
+		}
+		inserted, skipped, err := store.Transactions.BulkCreate(req)
+		if err != nil {
+			t.Fatalf("BulkCreate no-hash failed: %v", err)
+		}
+		if inserted != 2 {
+			t.Errorf("inserted = %d, want 2", inserted)
+		}
+		if skipped != 0 {
+			t.Errorf("skipped = %d, want 0", skipped)
 		}
 	})
 }
@@ -326,12 +385,15 @@ func TestTransactions_BulkCreate_PreservesDescription(t *testing.T) {
 		},
 	}
 
-	count, err := store.Transactions.BulkCreate(req)
+	inserted, skipped, err := store.Transactions.BulkCreate(req)
 	if err != nil {
 		t.Fatalf("BulkCreate failed: %v", err)
 	}
-	if count != 2 {
-		t.Fatalf("BulkCreate inserted %d, want 2", count)
+	if inserted != 2 {
+		t.Fatalf("BulkCreate inserted %d, want 2", inserted)
+	}
+	if skipped != 0 {
+		t.Errorf("BulkCreate skipped = %d, want 0", skipped)
 	}
 
 	// Read back via List with a wide date range.
