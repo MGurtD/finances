@@ -190,7 +190,7 @@ export interface BulkCreateInput {
 }
 
 export interface BulkCreateResult {
-  imported: number;
+  inserted: number;
   skipped: number;
 }
 
