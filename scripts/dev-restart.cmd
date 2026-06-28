@@ -130,10 +130,9 @@ if "%DO_WEB%"=="1" (
     if "%KILLED%"=="0" echo     ^(ningu escolta a :5173^)
     timeout /t 2 /nobreak >nul
 
-    echo [web] arrencant ^(logs: %LOG_DIR%\web.log^)^...
+    echo [web] arrencant (logs: %LOG_DIR%\web.log)
     pushd "%WEB_DIR%" >nul
-    powershell -NoProfile -Command ^
-        "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c','pnpm dev > \"%LOG_DIR%\web.log\" 2>&1' -WorkingDirectory '%WEB_DIR%' -NoNewWindow"
+    start "finances-web" /B cmd.exe /c "pnpm dev > %LOG_DIR%\web.log 2>&1"
     popd >nul
 
     set "WE_UP=0"
