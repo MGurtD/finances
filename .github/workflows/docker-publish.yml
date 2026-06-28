@@ -64,16 +64,28 @@ jobs:
       - name: pnpm install
         run: pnpm install --frozen-lockfile
 
-      - name: Generate OpenAPI schema for web
-        # schema.d.ts is generated (gitignored) and required by
-        # apps/web/src/api/client.ts. Generated from the backend's
-        # swag output, so it must run BEFORE typecheck.
+      - name: Generate + verify OpenAPI schema for web
+        # schema.d.ts is committed but generated from the backend's
+        # swag output. This single step:
+        #   1. Snapshots the committed schema.d.ts.
+        #   2. Regenerates swag docs + schema.d.ts from current handlers.
+        #   3. Fails if the regenerated file differs from the snapshot —
+        #      catching developers who bypassed the pre-push hook
+        #      (`--no-verify` or no core.hooksPath set).
         run: |
-          cd backend
-          go run github.com/swaggo/swag/cmd/swag@v1.16.6 init \
-            -g cmd/server/main.go -o internal/docs --parseDependency --parseInternal
-          cd ../apps/web
-          pnpm gen:api
+          set -e
+          cd "$GITHUB_WORKSPACE"
+          cp apps/web/src/api/schema.d.ts /tmp/schema.committed.ts
+          (cd backend && go run github.com/swaggo/swag/cmd/swag@v1.16.6 init \
+            -g cmd/server/main.go -o internal/docs --parseDependency --parseInternal)
+          (cd apps/web && pnpm gen:api)
+          if ! diff -q /tmp/schema.committed.ts "$GITHUB_WORKSPACE/apps/web/src/api/schema.d.ts" >/dev/null; then
+            echo "::error::apps/web/src/api/schema.d.ts is out of sync with backend handlers." >&2
+            echo "::error::Regenerate locally with: pnpm gen:api" >&2
+            echo "::error::Then commit the result and re-push." >&2
+            diff /tmp/schema.committed.ts "$GITHUB_WORKSPACE/apps/web/src/api/schema.d.ts" | head -100 >&2 || true
+            exit 1
+          fi
 
       - name: typecheck
         run: pnpm --filter @finances/web typecheck
