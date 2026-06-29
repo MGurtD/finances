@@ -1,6 +1,7 @@
 import { parseCsv } from './genericCsv';
 import { parseOfx } from './ofx';
 import { tradeRepublicImporter } from './tradeRepublic';
+import { indexaCapitalImporter } from './indexaCapital';
 import type { Importer, ImporterSuggestion, ParsedRow } from './types';
 
 export { parseAmountCents, rowImportHash, parseCsv } from './genericCsv';
@@ -62,6 +63,7 @@ export const ofxImporter: Importer = {
  */
 export const importers: Importer[] = [
   tradeRepublicImporter,
+  indexaCapitalImporter,
   genericCsvImporter,
   ofxImporter,
 ];

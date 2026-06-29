@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { importers, parseWith, suggestImporter } from '@/utils/importers';
+import { importers, maxAlternatives, parseWith, suggestImporter } from '@/utils/importers';
 
 /**
  * Helper: build a CSV with a given set of header columns.
@@ -36,14 +36,19 @@ describe('importer registry — suggestImporter', () => {
     }
   });
 
-  it('lists every registered importer in alternatives when nothing hits >= 0.4', () => {
-    // mystery.bin + garbage → all importers score 0; primary is null; all
-    // 3 (currently) registered importers appear in alternatives.
+  it('lists every registered importer (up to maxAlternatives) when nothing hits >= 0.4', () => {
+    // mystery.bin + garbage → all importers score 0; primary is null; the
+    // alternatives array is capped at `maxAlternatives` so when there are
+    // more registered importers than that cap, only the first `cap` (by
+    // registry order — alternatives are sorted desc by confidence, with
+    // ties broken by registry position) show up.
     const suggestion = suggestImporter('mystery.bin', '???');
     expect(suggestion.primary).toBeNull();
-    expect(suggestion.alternatives).toHaveLength(importers.length);
-    const ids = suggestion.alternatives.map((a) => a.importer.id).sort();
-    expect(ids).toEqual([...importers.map((i) => i.id)].sort());
+    const expected = Math.min(importers.length, maxAlternatives);
+    expect(suggestion.alternatives).toHaveLength(expected);
+    // First `cap` entries in registry order (since all importers score 0 here).
+    const expectedFirstIds = importers.slice(0, expected).map((i) => i.id);
+    expect(suggestion.alternatives.map((a) => a.importer.id)).toEqual(expectedFirstIds);
   });
 
   it('primary is the importer with the highest score even when others also score', () => {

@@ -9,6 +9,30 @@ import {
   detectFormat,
   type ParsedRow,
 } from '@/utils/importParsers';
+import { suggestImporter } from '@/utils/importers';
+import { parseCsv as parseIndexaCsv } from '@/utils/importers/indexaCapital';
+
+// ─── Indexa Capital importer — header literal from the spec ─────────────
+const INDEXA_HEADER_CONTENT =
+  '"Fecha valor";"Fecha operación";Inversión;"Código ISIN";Tipo;Participaciones;Importe;Retenciones;"Resultado fiscal"';
+
+// Single Indexa data row matching the spec scenario (REEMBOLSO POR TRASPASO).
+const INDEXA_REEMBOLSO_CSV = [
+  INDEXA_HEADER_CONTENT,
+  '11/05/2026;13/05/2026;Vanguard Global Stk Idx Eur -Ins Plus;IE00BFPM9N11;REEMBOLSO POR TRASPASO;1,730000;"732,52 €";"0,00 €";"0,00 €"',
+].join('\n');
+
+// SUSCRIPCION row for the income scenario.
+const INDEXA_SUSCRIPCION_CSV = [
+  INDEXA_HEADER_CONTENT,
+  '01/05/2026;03/05/2026;iShares Core MSCI World;IE00B4L5Y983;SUSCRIPCIÓN;0,250000;"42,00 €";"0,00 €";"0,00 €"',
+].join('\n');
+
+// SUSCRIPCIÓN POR TRASPASO variant.
+const INDEXA_SUSCRIPCION_POR_TRASPASO_CSV = [
+  INDEXA_HEADER_CONTENT,
+  '08/05/2026;10/05/2026;Amundi MSCI World;LU2009202107;SUSCRIPCIÓN POR TRASPASO;0,500000;"75,00 €";"0,00 €";"0,00 €"',
+].join('\n');
 
 // Resolve the real Marc's CSV fixture shipped under tests/fixtures.
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -192,5 +216,94 @@ describe('parseFile', () => {
     const r = await parseFile('mystery.bin', '???');
     expect(r.format).toBe('csv');
     expect(r.rows).toEqual([]);
+  });
+});
+
+// ─── Indexa Capital importer (csv-imports Reqs 1, 2, 3) ──────────────
+
+describe('indexa-capital importer — detection', () => {
+  it('detects by filename "IndexaCapital_Transacciones_…"', () => {
+    const suggestion = suggestImporter(
+      'IndexaCapital_Transacciones_7QMJ74WT_2026-06-28.csv',
+      INDEXA_HEADER_CONTENT,
+    );
+    expect(suggestion.primary?.id).toBe('indexa-capital');
+  });
+
+  it('detects by header alone when filename is generic', () => {
+    const suggestion = suggestImporter(
+      'extracte-maig.csv',
+      INDEXA_HEADER_CONTENT,
+    );
+    expect(suggestion.primary?.id).toBe('indexa-capital');
+  });
+
+  it('does NOT detect on a CaixaBank-shaped file with no Indexa header', () => {
+    const caixabankHeader =
+      'Fecha;Concepto;Saldo;Importe;Fecha operación;Fecha valor';
+    const suggestion = suggestImporter('moviments.csv', caixabankHeader);
+    expect(suggestion.primary?.id).not.toBe('indexa-capital');
+  });
+});
+
+describe('indexa-capital importer — parseCsv', () => {
+  it('parses REEMBOLSO POR TRASPASO row → expense, 73252c, correct description', () => {
+    const rows = parseIndexaCsv(INDEXA_REEMBOLSO_CSV);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.date).toBe('2026-05-11');
+    expect(rows[0]?.description).toBe(
+      'Vanguard Global Stk Idx Eur -Ins Plus — REEMBOLSO POR TRASPASO',
+    );
+    expect(rows[0]?.amountCents).toBe(73252);
+    expect(rows[0]?.kind).toBe('expense');
+  });
+
+  it('parses SUSCRIPCIÓN row → income', () => {
+    const rows = parseIndexaCsv(INDEXA_SUSCRIPCION_CSV);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.kind).toBe('income');
+    expect(rows[0]?.amountCents).toBeGreaterThan(0);
+  });
+
+  it('parses SUSCRIPCIÓN POR TRASPASO row → income (variant mapping)', () => {
+    const rows = parseIndexaCsv(INDEXA_SUSCRIPCION_POR_TRASPASO_CSV);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.kind).toBe('income');
+  });
+
+  it('imports the full fixture and emits 90 rows (no truncation)', () => {
+    const csv = readFileSync(
+      resolve(__dirname, 'fixtures/indexa-sample.csv'),
+      'utf8',
+    );
+    const rows = parseIndexaCsv(csv);
+    expect(rows.length).toBe(90);
+  });
+});
+
+describe('indexa-capital importer — importHash determinism', () => {
+  it('produces identical importHash on re-parse of the same CSV', () => {
+    const csv = readFileSync(
+      resolve(__dirname, 'fixtures/indexa-sample.csv'),
+      'utf8',
+    );
+    const a = parseIndexaCsv(csv);
+    const b = parseIndexaCsv(csv);
+    expect(a).toHaveLength(b.length);
+    for (let i = 0; i < a.length; i++) {
+      expect(a[i]?.importHash).toBe(b[i]?.importHash);
+    }
+  });
+
+  it('differentiates hashes by ISIN (hash key uses raw cells, not description)', () => {
+    const csv = [
+      INDEXA_HEADER_CONTENT,
+      '11/05/2026;13/05/2026;Same Investment Name;IE00AAAAAA001;REEMBOLSO POR TRASPASO;1,000000;"100,00 €";"0,00 €";"0,00 €"',
+      '11/05/2026;13/05/2026;Same Investment Name;IE00BBBBBB002;REEMBOLSO POR TRASPASO;1,000000;"100,00 €";"0,00 €";"0,00 €"',
+    ].join('\n');
+    const rows = parseIndexaCsv(csv);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.description).toBe(rows[1]?.description);
+    expect(rows[0]?.importHash).not.toBe(rows[1]?.importHash);
   });
 });
