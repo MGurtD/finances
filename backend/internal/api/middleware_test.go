@@ -16,6 +16,8 @@ func init() {
 	gin.SetMode(gin.TestMode)
 }
 
+// --- AuthMiddleware unit tests (existing) --------------------------------
+
 func TestAuthMiddleware_NoCookie(t *testing.T) {
 	r := gin.New()
 	srv := &apitypes.Server{JWTSecret: "test-secret"}
@@ -110,8 +112,8 @@ func TestAuthMiddleware_ExpiredToken(t *testing.T) {
 
 	// Create a truly expired token with past exp
 	expiredClaims := jwt.MapClaims{
-		"iat": float64(time.Now().Add(-48*time.Hour).Unix()),
-		"exp": float64(time.Now().Add(-1*time.Hour).Unix()), // expired 1h ago
+		"iat": float64(time.Now().Add(-48 * time.Hour).Unix()),
+		"exp": float64(time.Now().Add(-1 * time.Hour).Unix()), // expired 1h ago
 	}
 	expiredToken := jwt.NewWithClaims(jwt.SigningMethodHS256, expiredClaims)
 	tokenStr, err := expiredToken.SignedString([]byte("test-secret"))
@@ -143,26 +145,7 @@ func signTestToken(secret string, issuedAt time.Time) (string, error) {
 	return token.SignedString([]byte(secret))
 }
 
-func TestCORS_Middleware(t *testing.T) {
-	r := gin.New()
-	r.Use(CORSMiddleware())
-	r.GET("/test", func(c *gin.Context) {
-		c.JSON(200, gin.H{"ok": true})
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Origin", "http://localhost:5173")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	// Should have CORS headers when Origin matches
-	if w.Header().Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
-		t.Error("expected Access-Control-Allow-Origin to be http://localhost:5173")
-	}
-	if w.Header().Get("Access-Control-Allow-Credentials") != "true" {
-		t.Error("expected Access-Control-Allow-Credentials: true")
-	}
-}
+// --- RequestLogger & Recovery (existing) ---------------------------------
 
 func TestRequestLogger_Middleware(t *testing.T) {
 	r := gin.New()

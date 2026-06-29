@@ -1,144 +1,56 @@
-package handlers
+package handlers_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/mgurt/finances/internal/apitypes"
-	"github.com/mgurt/finances/internal/auth"
-	"github.com/mgurt/finances/internal/db"
+	"github.com/mgurt/finances/internal/api/testutil"
 	"github.com/mgurt/finances/internal/models"
 )
 
-// testTransactionsServer wires up ONLY the bulk-delete route against an
-// in-memory DB, with the real AuthMiddleware so we exercise the full
-// auth + handler + store chain end-to-end without pulling in the rest
-// of the route table (which would create an import cycle).
-func testTransactionsServer(t *testing.T) (*gin.Engine, *db.Store) {
-	t.Helper()
-
-	os.Setenv("DATABASE_URL", ":memory:")
-	defer os.Unsetenv("DATABASE_URL")
-
-	database, err := db.Open()
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
-	}
-	t.Cleanup(func() { database.Close() })
-
-	if err := db.RunMigrations(database); err != nil {
-		t.Fatalf("RunMigrations: %v", err)
-	}
-	if err := db.Seed(database); err != nil {
-		t.Fatalf("Seed: %v", err)
-	}
-
-	srv := apitypes.NewServer(database, apitypes.Config{
-		PasswordHash: "$2a$10$0/uPukIQ0ewWCbc/qrCk3OuY9fYa..NrOU3UwgtUPw0M1OBTHrENq",
-		JWTSecret:    "test-secret",
-		RateLimiter:  auth.NewRateLimiter(),
-	})
-	store := srv.Store
-
-	r := gin.New()
-	r.Use(gin.Recovery())
-
-	// Public routes (no auth required): login + accounts list (needed
-	// by the test helper to discover the seeded account).
-	authHandler := NewAuthHandler(srv)
-	r.POST("/api/auth/login", authHandler.Login)
-	r.GET("/api/accounts", NewAccountsHandler(srv).List)
-
-	// Real cookie auth middleware, mirroring internal/api/middleware.go.
-	r.Use(func(c *gin.Context) {
-		cookie, err := c.Cookie("finances_session")
-		if err != nil || cookie == "" {
-			c.Set("authenticated", false)
-			c.Next()
-			return
-		}
-		claims, err := auth.VerifyToken(cookie, srv.JWTSecret)
-		if err != nil {
-			c.Set("authenticated", false)
-			c.Next()
-			return
-		}
-		c.Set("authenticated", true)
-		if iat, ok := claims["iat"].(float64); ok {
-			c.Set("issuedAt", time.Unix(int64(iat), 0).Format(time.RFC3339))
-		}
-		c.Next()
-	})
-	r.Use(func(c *gin.Context) {
-		if authed, ok := c.Get("authenticated"); !ok || !authed.(bool) {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, models.ErrorResponse{Error: "unauthorized"})
-			return
-		}
-		c.Next()
-	})
-
-	txHandler := NewTransactionsHandler(srv)
-	r.POST("/api/transactions", txHandler.Create)
-	r.POST("/api/transactions/bulk", txHandler.BulkCreate)
-	r.POST("/api/transactions/bulk-delete", txHandler.BulkDelete)
-
-	return r, store
-}
-
-func login(t *testing.T, r *gin.Engine) string {
-	t.Helper()
-	body, _ := json.Marshal(map[string]string{"password": "password"})
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("login failed: %d %s", w.Code, w.Body.String())
-	}
-	cookieHeader := w.Header().Get("Set-Cookie")
-	if cookieHeader == "" {
-		t.Fatal("login did not return Set-Cookie")
-	}
-	for _, part := range strings.Split(cookieHeader, ";") {
-		part = strings.TrimSpace(part)
-		if strings.HasPrefix(part, "finances_session=") {
-			return strings.TrimPrefix(part, "finances_session=")
-		}
-	}
-	t.Fatal("could not extract finances_session cookie value")
-	return ""
-}
-
+// TestBulkDelete_HTTP exercises the full POST /api/transactions/bulk-delete
+// route to lock in the {deleted} response shape.
 func TestBulkDelete_HTTP(t *testing.T) {
-	r, _ := testTransactionsServer(t)
-	cookie := login(t, r)
+	s := testutil.NewServer(t)
+	s.Cookie = s.Login(t)
+	accountID := s.SeededAccountID(t)
+
+	createThree := func(t *testing.T) []string {
+		t.Helper()
+		ids := make([]string, 0, 3)
+		for i := 0; i < 3; i++ {
+			var created struct {
+				ID string `json:"id"`
+			}
+			w := s.DoJSON(t, http.MethodPost, "/api/transactions", map[string]any{
+				"accountId":   accountID,
+				"kind":        "expense",
+				"amount":      -100 * (i + 1),
+				"date":        "2026-05-01",
+				"description": "bulk-delete-test",
+			}, &created)
+			if w.Code != http.StatusCreated {
+				t.Fatalf("create tx %d: %d %s", i, w.Code, w.Body.String())
+			}
+			if created.ID == "" {
+				t.Fatalf("create tx %d returned empty id", i)
+			}
+			ids = append(ids, created.ID)
+		}
+		return ids
+	}
 
 	t.Run("deletes all ids and returns count", func(t *testing.T) {
-		ids := createThreeViaHTTP(t, r, cookie)
+		ids := createThree(t)
 
-		body, _ := json.Marshal(map[string]any{"ids": ids})
-		req := httptest.NewRequest(http.MethodPost, "/api/transactions/bulk-delete", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Cookie", "finances_session="+cookie)
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, req)
+		var resp models.BulkDeleteResult
+		w := s.DoJSON(t, http.MethodPost, "/api/transactions/bulk-delete",
+			map[string]any{"ids": ids}, &resp)
 
 		if w.Code != http.StatusOK {
-			t.Fatalf("status = %d, want 200. body: %s", w.Code, w.Body.String())
-		}
-
-		var resp struct {
-			Deleted int `json:"deleted"`
-		}
-		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-			t.Fatalf("unmarshal: %v", err)
+			t.Fatalf("status = %d, want 200 (body: %s)", w.Code, w.Body.String())
 		}
 		if resp.Deleted != 3 {
 			t.Errorf("deleted = %d, want 3", resp.Deleted)
@@ -146,107 +58,74 @@ func TestBulkDelete_HTTP(t *testing.T) {
 	})
 
 	t.Run("returns 400 when ids is empty", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]any{"ids": []string{}})
-		req := httptest.NewRequest(http.MethodPost, "/api/transactions/bulk-delete", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Cookie", "finances_session="+cookie)
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, req)
+		w := s.DoJSON(t, http.MethodPost, "/api/transactions/bulk-delete",
+			map[string]any{"ids": []string{}}, nil)
 		if w.Code != http.StatusBadRequest {
-			t.Errorf("status = %d, want 400", w.Code)
+			t.Errorf("status = %d, want 400 (body: %s)", w.Code, w.Body.String())
 		}
 	})
 
 	t.Run("returns 400 when body is malformed", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/transactions/bulk-delete", bytes.NewReader([]byte("not json")))
+		// Bypass the JSON helper to send a non-JSON body.
+		req := httptest.NewRequest(http.MethodPost, "/api/transactions/bulk-delete",
+			bytes.NewReader([]byte("not json")))
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Cookie", "finances_session="+cookie)
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, req)
+		if s.Cookie != "" {
+			req.Header.Set("Cookie", testutil.CookieName+"="+s.Cookie)
+		}
+		w := s.Do(req)
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("status = %d, want 400", w.Code)
 		}
 	})
 
 	t.Run("returns 0 deleted when ids do not exist", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]any{"ids": []string{"no-such-id-1", "no-such-id-2"}})
-		req := httptest.NewRequest(http.MethodPost, "/api/transactions/bulk-delete", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Cookie", "finances_session="+cookie)
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, req)
+		var resp models.BulkDeleteResult
+		w := s.DoJSON(t, http.MethodPost, "/api/transactions/bulk-delete",
+			map[string]any{"ids": []string{"no-such-id-1", "no-such-id-2"}}, &resp)
 		if w.Code != http.StatusOK {
-			t.Fatalf("status = %d, want 200. body: %s", w.Code, w.Body.String())
+			t.Fatalf("status = %d, want 200 (body: %s)", w.Code, w.Body.String())
 		}
-		var resp struct {
-			Deleted int `json:"deleted"`
-		}
-		_ = json.Unmarshal(w.Body.Bytes(), &resp)
 		if resp.Deleted != 0 {
 			t.Errorf("deleted = %d, want 0", resp.Deleted)
 		}
 	})
 
 	t.Run("returns 401 without auth cookie", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]any{"ids": []string{"x"}})
-		req := httptest.NewRequest(http.MethodPost, "/api/transactions/bulk-delete", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, req)
+		// Build a fresh server with no cookie.
+		s2 := testutil.NewServer(t)
+		w := s2.DoJSON(t, http.MethodPost, "/api/transactions/bulk-delete",
+			map[string]any{"ids": []string{"x"}}, nil)
 		if w.Code != http.StatusUnauthorized {
 			t.Errorf("status = %d, want 401", w.Code)
 		}
 	})
 }
 
-// TestBulkCreate_HTTP exercises the full BulkCreate HTTP route to lock in
-// the {inserted, skipped} response shape and the dedup activation wired
-// through SHA256(importHash).
+// TestBulkCreate_HTTP exercises POST /api/transactions/bulk to lock in the
+// {inserted, skipped} response shape and the SHA256(importHash) dedup path.
 func TestBulkCreate_HTTP(t *testing.T) {
-	r, store := testTransactionsServer(t)
-	cookie := login(t, r)
+	s := testutil.NewServer(t)
+	s.Cookie = s.Login(t)
+	accountID := s.SeededAccountID(t)
 
-	// Discover the seeded account id (single helper call shared across subtests).
-	listReq := httptest.NewRequest(http.MethodGet, "/api/accounts", nil)
-	listReq.Header.Set("Cookie", "finances_session="+cookie)
-	listW := httptest.NewRecorder()
-	r.ServeHTTP(listW, listReq)
-	if listW.Code != http.StatusOK {
-		t.Fatalf("list accounts: %d %s", listW.Code, listW.Body.String())
-	}
-	var accounts []struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(listW.Body.Bytes(), &accounts); err != nil {
-		t.Fatalf("unmarshal accounts: %v", err)
-	}
-	if len(accounts) == 0 {
-		t.Fatal("no seeded accounts")
-	}
-	accountID := accounts[0].ID
-
-	postBulk := func(t *testing.T, body []byte) (int, map[string]int) {
+	postBulk := func(t *testing.T, body any) (int, map[string]int) {
 		t.Helper()
-		req := httptest.NewRequest(http.MethodPost, "/api/transactions/bulk", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Cookie", "finances_session="+cookie)
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, req)
 		var resp map[string]int
-		_ = json.Unmarshal(w.Body.Bytes(), &resp)
+		w := s.DoJSON(t, http.MethodPost, "/api/transactions/bulk", body, &resp)
 		return w.Code, resp
 	}
 
-	t.Run("returns inserted count and skipped=0 on first import", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]any{
+	t.Run("returns inserted=2, skipped=0 on first import", func(t *testing.T) {
+		body := map[string]any{
 			"transactions": []map[string]any{
 				{"accountId": accountID, "kind": "expense", "amount": -10, "date": "2026-04-01", "importHash": "http-h-001"},
 				{"accountId": accountID, "kind": "expense", "amount": -20, "date": "2026-04-02", "importHash": "http-h-002"},
 			},
-		})
+		}
 		code, resp := postBulk(t, body)
 		if code != http.StatusOK {
-			t.Fatalf("status = %d, want 200. body=%s", code, string(body))
+			t.Fatalf("status = %d, want 200 (body: %s)", code, body)
 		}
 		if resp["inserted"] != 2 {
 			t.Errorf("inserted = %d, want 2", resp["inserted"])
@@ -256,13 +135,13 @@ func TestBulkCreate_HTTP(t *testing.T) {
 		}
 	})
 
-	t.Run("re-importing the same hashes returns inserted=0, skipped=N", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]any{
+	t.Run("re-importing the same hashes returns inserted=0, skipped=2", func(t *testing.T) {
+		body := map[string]any{
 			"transactions": []map[string]any{
 				{"accountId": accountID, "kind": "expense", "amount": -10, "date": "2026-04-01", "importHash": "http-h-001"},
 				{"accountId": accountID, "kind": "expense", "amount": -20, "date": "2026-04-02", "importHash": "http-h-002"},
 			},
-		})
+		}
 		code, resp := postBulk(t, body)
 		if code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", code)
@@ -276,74 +155,527 @@ func TestBulkCreate_HTTP(t *testing.T) {
 	})
 
 	t.Run("returns 401 without auth cookie", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]any{
+		s2 := testutil.NewServer(t)
+		body := map[string]any{
 			"transactions": []map[string]any{
 				{"accountId": accountID, "kind": "expense", "amount": -1, "date": "2026-04-01"},
 			},
-		})
-		req := httptest.NewRequest(http.MethodPost, "/api/transactions/bulk", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, req)
+		}
+		w := s2.DoJSON(t, http.MethodPost, "/api/transactions/bulk", body, nil)
 		if w.Code != http.StatusUnauthorized {
 			t.Errorf("status = %d, want 401", w.Code)
 		}
 	})
-
-	// Silence the unused import for `store` in case future tests need it.
-	_ = store
 }
 
-// createThreeViaHTTP creates three transactions through the real handler
-// using the seeded default account.
-func createThreeViaHTTP(t *testing.T, r *gin.Engine, cookie string) []string {
+// createOneTx is a small helper that creates one expense transaction
+// against the seeded default account and returns its id.
+func createOneTx(t *testing.T, s *testutil.Server, accountID, date string, amount int) string {
 	t.Helper()
-
-	listReq := httptest.NewRequest(http.MethodGet, "/api/accounts", nil)
-	listReq.Header.Set("Cookie", "finances_session="+cookie)
-	listW := httptest.NewRecorder()
-	r.ServeHTTP(listW, listReq)
-	if listW.Code != http.StatusOK {
-		t.Fatalf("list accounts: %d %s", listW.Code, listW.Body.String())
-	}
-	var accounts []struct {
+	var created struct {
 		ID string `json:"id"`
 	}
-	if err := json.Unmarshal(listW.Body.Bytes(), &accounts); err != nil {
-		t.Fatalf("unmarshal accounts: %v", err)
+	w := s.DoJSON(t, http.MethodPost, "/api/transactions", map[string]any{
+		"accountId": accountID,
+		"kind":      "expense",
+		"amount":    amount,
+		"date":      date,
+	}, &created)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create tx: %d %s", w.Code, w.Body.String())
 	}
-	if len(accounts) == 0 {
-		t.Fatal("no seeded accounts")
+	if created.ID == "" {
+		t.Fatal("created tx has empty id")
 	}
-	accountID := accounts[0].ID
+	return created.ID
+}
 
-	ids := make([]string, 0, 3)
-	for i := 0; i < 3; i++ {
-		body, _ := json.Marshal(map[string]any{
-			"accountId":   accountID,
-			"kind":        "expense",
-			"amount":      -100 * (i + 1),
-			"date":        "2026-05-01",
-			"description": "bulk-delete-test",
-		})
-		req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Cookie", "finances_session="+cookie)
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, req)
+// --- TestTransactions_List_HTTP -------------------------------------------
+
+func TestTransactions_List_HTTP(t *testing.T) {
+	t.Run("empty returns 200 with empty array", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+
+		var resp []map[string]any
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions", nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if len(resp) != 0 {
+			t.Errorf("len = %d, want 0", len(resp))
+		}
+	})
+
+	t.Run("one seeded returns 200 with 1 element", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		createOneTx(t, s, accountID, "2026-06-01", -100)
+
+		var resp []map[string]any
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions", nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if len(resp) != 1 {
+			t.Errorf("len = %d, want 1", len(resp))
+		}
+	})
+
+	t.Run("?accountId=… filters", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		createOneTx(t, s, accountID, "2026-06-01", -100)
+
+		var resp []map[string]any
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions?accountId="+accountID, nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if len(resp) != 1 {
+			t.Errorf("len = %d, want 1 (accountId filter)", len(resp))
+		}
+	})
+
+	t.Run("?from=…&to=… filters by date", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		createOneTx(t, s, accountID, "2026-05-15", -50)
+		createOneTx(t, s, accountID, "2026-06-15", -50)
+
+		var resp []map[string]any
+		w := s.DoJSON(t, http.MethodGet,
+			"/api/transactions?from=2026-06-01&to=2026-06-30", nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if len(resp) != 1 {
+			t.Errorf("len = %d, want 1 (May tx excluded)", len(resp))
+		}
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions", nil, nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
+		}
+	})
+}
+
+// --- TestTransactions_ByID_HTTP -------------------------------------------
+
+func TestTransactions_ByID_HTTP(t *testing.T) {
+	t.Run("valid id returns 200", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		id := createOneTx(t, s, accountID, "2026-06-01", -100)
+
+		var resp map[string]any
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/"+id, nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if got, _ := resp["id"].(string); got != id {
+			t.Errorf("id = %q, want %q", got, id)
+		}
+	})
+
+	t.Run("unknown id returns 404 {error:transaction not found}", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		var resp models.ErrorResponse
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/no-such-id", nil, &resp)
+		if w.Code != http.StatusNotFound {
+			t.Errorf("status = %d, want 404", w.Code)
+		}
+		if resp.Error != "transaction not found" {
+			t.Errorf("error = %q, want 'transaction not found'", resp.Error)
+		}
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/any", nil, nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
+		}
+	})
+}
+
+// --- TestTransactions_Create_HTTP -----------------------------------------
+
+func TestTransactions_Create_HTTP(t *testing.T) {
+	t.Run("valid body returns 201 with id", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		categoryID := s.SeededCategoryID(t, "Habitatge")
+
+		body := map[string]any{
+			"accountId":  accountID,
+			"categoryId": categoryID,
+			"kind":       "expense",
+			"amount":     -1500,
+			"date":       "2026-06-15",
+		}
+		var resp map[string]any
+		w := s.DoJSON(t, http.MethodPost, "/api/transactions", body, &resp)
 		if w.Code != http.StatusCreated {
-			t.Fatalf("create tx %d: %d %s", i, w.Code, w.Body.String())
+			t.Fatalf("status = %d, want 201 (body: %s)", w.Code, w.Body.String())
 		}
-		var created struct {
-			ID string `json:"id"`
+		if id, _ := resp["id"].(string); id == "" {
+			t.Error("id is empty")
 		}
-		if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil {
-			t.Fatalf("unmarshal tx %d: %v", i, err)
+	})
+
+	t.Run("missing required fields returns 400", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		w := s.DoJSON(t, http.MethodPost, "/api/transactions",
+			map[string]any{"amount": -100}, nil)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400", w.Code)
 		}
-		if created.ID == "" {
-			t.Fatalf("created tx %d has empty id", i)
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		w := s.DoJSON(t, http.MethodPost, "/api/transactions",
+			map[string]any{"amount": -1, "date": "2026-06-01", "kind": "expense", "accountId": "x"},
+			nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
 		}
-		ids = append(ids, created.ID)
-	}
-	return ids
+	})
+}
+
+// --- TestTransactions_Update_HTTP -----------------------------------------
+
+func TestTransactions_Update_HTTP(t *testing.T) {
+	t.Run("valid update returns 200", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		id := createOneTx(t, s, accountID, "2026-06-01", -100)
+
+		var resp map[string]any
+		w := s.DoJSON(t, http.MethodPut, "/api/transactions/"+id, map[string]any{
+			"amount":    -200,
+			"date":      "2026-06-02",
+			"kind":      "expense",
+			"accountId": accountID,
+		}, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body: %s)", w.Code, w.Body.String())
+		}
+		if got, _ := resp["amount"].(float64); int(got) != -200 {
+			t.Errorf("amount = %v, want -200", resp["amount"])
+		}
+	})
+
+	t.Run("unknown id returns 404", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		var resp models.ErrorResponse
+		w := s.DoJSON(t, http.MethodPut, "/api/transactions/no-such-id",
+			map[string]any{"amount": -1}, &resp)
+		if w.Code != http.StatusNotFound {
+			t.Errorf("status = %d, want 404", w.Code)
+		}
+		if resp.Error != "transaction not found" {
+			t.Errorf("error = %q, want 'transaction not found'", resp.Error)
+		}
+	})
+
+	t.Run("malformed JSON returns 400", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		id := createOneTx(t, s, accountID, "2026-06-01", -100)
+		req := newJSONRequest(t, http.MethodPut, "/api/transactions/"+id, "not json", s.Cookie)
+		w := s.Do(req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400", w.Code)
+		}
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		w := s.DoJSON(t, http.MethodPut, "/api/transactions/any",
+			map[string]any{"amount": -1}, nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
+		}
+	})
+}
+
+// --- TestTransactions_Delete_HTTP -----------------------------------------
+
+func TestTransactions_Delete_HTTP(t *testing.T) {
+	t.Run("valid id returns 200 with ok:true", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		id := createOneTx(t, s, accountID, "2026-06-01", -100)
+
+		var resp map[string]any
+		w := s.DoJSON(t, http.MethodDelete, "/api/transactions/"+id, nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if ok, _ := resp["ok"].(bool); !ok {
+			t.Errorf("ok = %v, want true", resp["ok"])
+		}
+	})
+
+	t.Run("unknown id returns 404", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		var resp models.ErrorResponse
+		w := s.DoJSON(t, http.MethodDelete, "/api/transactions/no-such-id", nil, &resp)
+		if w.Code != http.StatusNotFound {
+			t.Errorf("status = %d, want 404", w.Code)
+		}
+		if resp.Error != "transaction not found" {
+			t.Errorf("error = %q, want 'transaction not found'", resp.Error)
+		}
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		w := s.DoJSON(t, http.MethodDelete, "/api/transactions/any", nil, nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
+		}
+	})
+}
+
+// --- TestTransactions_HasAny_HTTP -----------------------------------------
+
+func TestTransactions_HasAny_HTTP(t *testing.T) {
+	t.Run("empty returns 200 with hasAny:false", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+
+		var resp map[string]any
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/has-any", nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if hasAny, _ := resp["hasAny"].(bool); hasAny {
+			t.Error("hasAny = true, want false (empty db)")
+		}
+	})
+
+	t.Run("seeded returns 200 with hasAny:true", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		createOneTx(t, s, accountID, "2026-06-01", -100)
+
+		var resp map[string]any
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/has-any", nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if hasAny, _ := resp["hasAny"].(bool); !hasAny {
+			t.Error("hasAny = false, want true")
+		}
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/has-any", nil, nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
+		}
+	})
+}
+
+// --- TestTransactions_Recent_HTTP -----------------------------------------
+
+func TestTransactions_Recent_HTTP(t *testing.T) {
+	t.Run("seeded transactions returned in date desc order", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		// Create two transactions on different dates.
+		createOneTx(t, s, accountID, "2026-06-01", -100)
+		createOneTx(t, s, accountID, "2026-06-15", -200)
+
+		var resp []map[string]any
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/recent", nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if len(resp) != 2 {
+			t.Errorf("len = %d, want 2", len(resp))
+		}
+		// The most recent date should come first.
+		first, _ := resp[0]["date"].(string)
+		second, _ := resp[1]["date"].(string)
+		if first != "2026-06-15" || second != "2026-06-01" {
+			t.Errorf("order = [%s, %s], want [2026-06-15, 2026-06-01]", first, second)
+		}
+	})
+
+	t.Run("?limit=K truncates results", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		for i := 1; i <= 3; i++ {
+			createOneTx(t, s, accountID, "2026-06-01", -100*i)
+		}
+
+		var resp []map[string]any
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/recent?limit=2", nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if len(resp) != 2 {
+			t.Errorf("len = %d, want 2 (limit=2)", len(resp))
+		}
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/recent", nil, nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
+		}
+	})
+}
+
+// --- TestTransactions_SummaryByMonth_HTTP ---------------------------------
+
+func TestTransactions_SummaryByMonth_HTTP(t *testing.T) {
+	t.Run("empty returns 200 with empty array", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+
+		var resp []map[string]any
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/summary-by-month", nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if len(resp) != 0 {
+			t.Errorf("len = %d, want 0", len(resp))
+		}
+	})
+
+	t.Run("transactions across months yield month buckets", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		// Two in June, one in May.
+		createOneTx(t, s, accountID, "2026-06-01", -100)
+		createOneTx(t, s, accountID, "2026-06-15", -50)
+		createOneTx(t, s, accountID, "2026-05-15", -75)
+
+		var resp []map[string]any
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/summary-by-month", nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if len(resp) != 2 {
+			t.Fatalf("len = %d, want 2 (one per month)", len(resp))
+		}
+		// Buckets are ordered by month desc.
+		first, _ := resp[0]["month"].(string)
+		second, _ := resp[1]["month"].(string)
+		if first != "2026-06" || second != "2026-05" {
+			t.Errorf("months = [%s, %s], want [2026-06, 2026-05]", first, second)
+		}
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/summary-by-month", nil, nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
+		}
+	})
+}
+
+// --- TestTransactions_SummaryByCategory_HTTP ------------------------------
+
+func TestTransactions_SummaryByCategory_HTTP(t *testing.T) {
+	t.Run("empty returns 200 with empty array", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+
+		var resp []map[string]any
+		w := s.DoJSON(t, http.MethodGet,
+			"/api/transactions/summary-by-category?from=2026-06-01&to=2026-06-30", nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if len(resp) != 0 {
+			t.Errorf("len = %d, want 0", len(resp))
+		}
+	})
+
+	t.Run("expenses across categories yield buckets summing correctly", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		accountID := s.SeededAccountID(t)
+		cat1 := s.SeededCategoryID(t, "Habitatge")
+		cat2 := s.SeededCategoryID(t, "Salut")
+
+		// Two expenses in cat1, one in cat2.
+		for _, c := range []struct {
+			cat string
+			amt int
+		}{
+			{cat1, -100},
+			{cat1, -200},
+			{cat2, -50},
+		} {
+			var created struct {
+				ID string `json:"id"`
+			}
+			w := s.DoJSON(t, http.MethodPost, "/api/transactions", map[string]any{
+				"accountId":  accountID,
+				"categoryId": c.cat,
+				"kind":       "expense",
+				"amount":     c.amt,
+				"date":       "2026-06-15",
+			}, &created)
+			if w.Code != http.StatusCreated {
+				t.Fatalf("create: %d", w.Code)
+			}
+		}
+
+		var resp []map[string]any
+		w := s.DoJSON(t, http.MethodGet,
+			"/api/transactions/summary-by-category?from=2026-06-01&to=2026-06-30", nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if len(resp) != 2 {
+			t.Fatalf("len = %d, want 2 (Habitatge + Salut)", len(resp))
+		}
+		// Buckets are ordered by total desc — Habitatge (300) before Salut (50).
+		first, _ := resp[0]["categoryName"].(string)
+		if first != "Habitatge" {
+			t.Errorf("first bucket name = %q, want 'Habitatge'", first)
+		}
+		firstTotal, _ := resp[0]["total"].(float64)
+		if int(firstTotal) != 300 {
+			t.Errorf("first bucket total = %v, want 300 (100+200)", resp[0]["total"])
+		}
+		second, _ := resp[1]["categoryName"].(string)
+		if second != "Salut" {
+			t.Errorf("second bucket name = %q, want 'Salut'", second)
+		}
+		secondTotal, _ := resp[1]["total"].(float64)
+		if int(secondTotal) != 50 {
+			t.Errorf("second bucket total = %v, want 50", resp[1]["total"])
+		}
+	})
+
+	t.Run("missing from or to returns 400", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		w := s.DoJSON(t, http.MethodGet, "/api/transactions/summary-by-category", nil, nil)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("no params: status = %d, want 400", w.Code)
+		}
+		w = s.DoJSON(t, http.MethodGet, "/api/transactions/summary-by-category?from=2026-06-01", nil, nil)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("no to: status = %d, want 400", w.Code)
+		}
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		w := s.DoJSON(t, http.MethodGet,
+			"/api/transactions/summary-by-category?from=2026-06-01&to=2026-06-30", nil, nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
+		}
+	})
 }
