@@ -340,6 +340,39 @@ describe('indexa-capital importer — importHash determinism', () => {
   });
 });
 
+// ─── Importer registry — Indexa and Abanca ranking (csv Reqs 1 & 4) ───
+
+describe('importer registry — Indexa and Abanca ranking', () => {
+  it('suggests the dedicated Indexa importer, not generic-csv, on Indexa header + filename', () => {
+    const suggestion = suggestImporter(
+      'IndexaCapital_Transacciones_7QMJ74WT_2026-06-28.csv',
+      INDEXA_HEADER_CONTENT,
+    );
+    expect(suggestion.primary?.id).toBe('indexa-capital');
+    // Generic is reachable via alternatives, not primary.
+    expect(suggestion.primary?.id).not.toBe('generic-csv');
+    const genericAlt = suggestion.alternatives.find(
+      (a) => a.importer.id === 'generic-csv',
+    );
+    expect(genericAlt).toBeDefined();
+    expect(genericAlt!.confidence).toBeLessThan(suggestion.confidence);
+  });
+
+  it('suggests the dedicated Abanca importer, not generic-csv, on Abanca header + filename', () => {
+    const suggestion = suggestImporter(
+      'Abanca_Transacciones.csv',
+      ABANCA_HEADER,
+    );
+    expect(suggestion.primary?.id).toBe('abanca');
+    expect(suggestion.primary?.id).not.toBe('generic-csv');
+    const genericAlt = suggestion.alternatives.find(
+      (a) => a.importer.id === 'generic-csv',
+    );
+    expect(genericAlt).toBeDefined();
+    expect(genericAlt!.confidence).toBeLessThan(suggestion.confidence);
+  });
+});
+
 // ─── Abanca importer (csv-imports Reqs 4, 5, 6) ────────────────────────
 
 describe('abanca importer — detection', () => {
