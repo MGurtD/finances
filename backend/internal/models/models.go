@@ -1,14 +1,50 @@
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+)
 
 // BoolInt is a custom type for SQLite INTEGER (0/1) to Go bool JSON marshaling.
-// SQLite stores booleans as integers 0/1. This type marshals to JSON as true/false.
+// SQLite stores booleans as integers 0/1. This type marshals to JSON as true/false
+// and round-trips through JSON via UnmarshalJSON.
 type BoolInt int
 
 // MarshalJSON converts BoolInt to JSON boolean.
 func (b BoolInt) MarshalJSON() ([]byte, error) {
 	return boolJSON(b != 0)
+}
+
+// UnmarshalJSON accepts JSON booleans (true|false) or JSON numbers (0|1)
+// and stores 0 or 1 in *b. Anything else returns an error and leaves *b
+// unchanged. Symmetric with MarshalJSON so a JSON byte stream produced by
+// a Postgres-style boolean ("archived":true) round-trips into SQLite
+// storage as INTEGER 1.
+func (b *BoolInt) UnmarshalJSON(data []byte) error {
+	var v any
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	switch x := v.(type) {
+	case bool:
+		if x {
+			*b = 1
+		} else {
+			*b = 0
+		}
+	case float64:
+		if x == 0 {
+			*b = 0
+		} else if x == 1 {
+			*b = 1
+		} else {
+			return fmt.Errorf("BoolInt: cannot unmarshal %v into BoolInt (only 0|1)", x)
+		}
+	default:
+		return fmt.Errorf("BoolInt: cannot unmarshal %s into BoolInt", string(data))
+	}
+	return nil
 }
 
 func boolJSON(b bool) ([]byte, error) {

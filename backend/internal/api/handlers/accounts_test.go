@@ -26,7 +26,7 @@ func TestAccounts_List_HTTP(t *testing.T) {
 		s := testutil.NewServer(t, testutil.WithSeeded(false))
 		s.Cookie = s.Login(t)
 
-		var resp []map[string]any
+		var resp []models.Account
 		w := s.DoJSON(t, http.MethodGet, "/api/accounts", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
@@ -40,7 +40,7 @@ func TestAccounts_List_HTTP(t *testing.T) {
 		s, cookie := loginAsAdmin(t)
 		_ = cookie
 
-		var resp []map[string]any
+		var resp []models.Account
 		w := s.DoJSON(t, http.MethodGet, "/api/accounts", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
@@ -48,8 +48,8 @@ func TestAccounts_List_HTTP(t *testing.T) {
 		if len(resp) != 1 {
 			t.Errorf("len = %d, want 1", len(resp))
 		}
-		if name, _ := resp[0]["name"].(string); name != "Compte corrent" {
-			t.Errorf("name = %q, want 'Compte corrent'", name)
+		if resp[0].Name != "Compte corrent" {
+			t.Errorf("name = %q, want 'Compte corrent'", resp[0].Name)
 		}
 	})
 
@@ -61,7 +61,7 @@ func TestAccounts_List_HTTP(t *testing.T) {
 			t.Fatalf("archive: %d", w.Code)
 		}
 
-		var resp []map[string]any
+		var resp []models.Account
 		w = s.DoJSON(t, http.MethodGet, "/api/accounts", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
@@ -78,7 +78,7 @@ func TestAccounts_List_HTTP(t *testing.T) {
 			t.Fatalf("archive: %d", w.Code)
 		}
 
-		var resp []map[string]any
+		var resp []models.Account
 		w = s.DoJSON(t, http.MethodGet, "/api/accounts?includeArchived=true", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
@@ -105,13 +105,13 @@ func TestAccounts_ByID_HTTP(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 		id := s.SeededAccountID(t)
 
-		var resp map[string]any
+		var resp models.Account
 		w := s.DoJSON(t, http.MethodGet, "/api/accounts/"+id, nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
 		}
-		if got, _ := resp["id"].(string); got != id {
-			t.Errorf("id = %q, want %q", got, id)
+		if resp.ID != id {
+			t.Errorf("id = %q, want %q", resp.ID, id)
 		}
 	})
 
@@ -150,15 +150,15 @@ func TestAccounts_Create_HTTP(t *testing.T) {
 			"initialBalance": 5000,
 			"currency":       "EUR",
 		}
-		var resp map[string]any
+		var resp models.Account
 		w := s.DoJSON(t, http.MethodPost, "/api/accounts", body, &resp)
 		if w.Code != http.StatusCreated {
 			t.Fatalf("status = %d, want 201 (body: %s)", w.Code, w.Body.String())
 		}
-		if name, _ := resp["name"].(string); name != "Test Savings" {
-			t.Errorf("name = %q, want 'Test Savings'", name)
+		if resp.Name != "Test Savings" {
+			t.Errorf("name = %q, want 'Test Savings'", resp.Name)
 		}
-		if id, _ := resp["id"].(string); id == "" {
+		if resp.ID == "" {
 			t.Error("id is empty")
 		}
 	})
@@ -196,13 +196,13 @@ func TestAccounts_Update_HTTP(t *testing.T) {
 			"color": "#ABCDEF",
 			"icon":  "wallet",
 		}
-		var resp map[string]any
+		var resp models.Account
 		w := s.DoJSON(t, http.MethodPut, "/api/accounts/"+id, body, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200 (body: %s)", w.Code, w.Body.String())
 		}
-		if name, _ := resp["name"].(string); name != "Renamed" {
-			t.Errorf("name = %q, want 'Renamed'", name)
+		if resp.Name != "Renamed" {
+			t.Errorf("name = %q, want 'Renamed'", resp.Name)
 		}
 	})
 
@@ -247,14 +247,14 @@ func TestAccounts_Archive_HTTP(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 		id := s.SeededAccountID(t)
 
-		var resp map[string]any
+		var resp models.Account
 		w := s.DoJSON(t, http.MethodPatch, "/api/accounts/"+id+"/archive", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
 		}
-		// models.BoolInt marshals to JSON boolean; we read it as any.
-		if archived, ok := resp["archived"].(bool); !ok || !archived {
-			t.Errorf("archived = %v, want true", resp["archived"])
+		// models.BoolInt unmarshals JSON booleans into 0/1.
+		if resp.Archived == 0 {
+			t.Errorf("archived = %d, want 1 (true)", resp.Archived)
 		}
 	})
 
@@ -291,7 +291,7 @@ func TestAccounts_Delete_HTTP(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
 		}
-		// deleted field may be int or float64 depending on JSON shape.
+		// deleted field is a JSON number; map decode preserves float64.
 		if d, ok := resp["deleted"].(float64); !ok || int(d) < 0 {
 			t.Errorf("deleted = %v, want non-negative int", resp["deleted"])
 		}
@@ -325,14 +325,14 @@ func TestAccounts_Reorder_HTTP(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 		id := s.SeededAccountID(t)
 		// Create a second account so we have a meaningful order.
-		var created map[string]any
+		var created models.Account
 		w := s.DoJSON(t, http.MethodPost, "/api/accounts", map[string]any{
 			"name": "Second", "type": "checking",
 		}, &created)
 		if w.Code != http.StatusCreated {
 			t.Fatalf("create second: %d", w.Code)
 		}
-		secondID, _ := created["id"].(string)
+		secondID := created.ID
 
 		var resp map[string]any
 		w = s.DoJSON(t, http.MethodPost, "/api/accounts/reorder", map[string]any{
@@ -371,7 +371,7 @@ func TestAccounts_Balances_HTTP(t *testing.T) {
 	t.Run("empty account with no transactions returns initial balance", func(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 		// Default seeded account has initialBalance=0.
-		var resp []map[string]any
+		var resp []models.AccountWithBalance
 		w := s.DoJSON(t, http.MethodGet, "/api/accounts/balances", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
@@ -379,8 +379,8 @@ func TestAccounts_Balances_HTTP(t *testing.T) {
 		if len(resp) != 1 {
 			t.Fatalf("len = %d, want 1", len(resp))
 		}
-		if bal, ok := resp[0]["balance"].(float64); !ok || int(bal) != 0 {
-			t.Errorf("balance = %v, want 0", resp[0]["balance"])
+		if resp[0].Balance != 0 {
+			t.Errorf("balance = %d, want 0", resp[0].Balance)
 		}
 	})
 
@@ -399,7 +399,7 @@ func TestAccounts_Balances_HTTP(t *testing.T) {
 			t.Fatalf("create tx: %d %s", w.Code, w.Body.String())
 		}
 
-		var resp []map[string]any
+		var resp []models.AccountWithBalance
 		w = s.DoJSON(t, http.MethodGet, "/api/accounts/balances", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
@@ -407,8 +407,8 @@ func TestAccounts_Balances_HTTP(t *testing.T) {
 		if len(resp) != 1 {
 			t.Fatalf("len = %d, want 1", len(resp))
 		}
-		if bal, _ := resp[0]["balance"].(float64); int(bal) != 1234 {
-			t.Errorf("balance = %v, want 1234 (initial 0 + income 1234)", resp[0]["balance"])
+		if resp[0].Balance != 1234 {
+			t.Errorf("balance = %d, want 1234 (initial 0 + income 1234)", resp[0].Balance)
 		}
 	})
 
@@ -426,13 +426,16 @@ func TestAccounts_Balances_HTTP(t *testing.T) {
 			t.Fatalf("create tx: %d %s", w.Code, w.Body.String())
 		}
 
-		var resp []map[string]any
+		var resp []models.AccountWithBalance
 		w = s.DoJSON(t, http.MethodGet, "/api/accounts/balances", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
 		}
-		if bal, _ := resp[0]["balance"].(float64); int(bal) != -500 {
-			t.Errorf("balance = %v, want -500", resp[0]["balance"])
+		if len(resp) != 1 {
+			t.Fatalf("len = %d, want 1", len(resp))
+		}
+		if resp[0].Balance != -500 {
+			t.Errorf("balance = %d, want -500", resp[0].Balance)
 		}
 	})
 
