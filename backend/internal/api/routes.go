@@ -74,6 +74,7 @@ func RegisterRoutes(r *gin.Engine, srv *apitypes.Server) {
 			budgetsHandler := handlers.NewBudgetsHandler(srv)
 			protected.GET("/budgets", budgetsHandler.List)
 			protected.POST("/budgets", budgetsHandler.Upsert)
+			protected.GET("/budgets/:id", budgetsHandler.Get)
 			protected.PUT("/budgets/:id", budgetsHandler.Update)
 			protected.DELETE("/budgets/:id", budgetsHandler.Delete)
 			protected.GET("/budgets/status", budgetsHandler.Status)

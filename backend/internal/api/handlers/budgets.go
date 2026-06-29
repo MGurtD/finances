@@ -153,3 +153,24 @@ func (h *BudgetsHandler) Status(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, status)
 }
+
+// Get godoc
+// @Summary      Get budget by ID
+// @Description  Retrieve a single budget by its ID
+// @Tags         budgets
+// @Produce      json
+// @Param        id  path  string  true  "budget ID"
+// @Success      200  {object}  models.Budget
+// @Failure      401  {object}  models.ErrorResponse
+// @Failure      404  {object}  models.ErrorResponse
+// @Router       /api/budgets/{id} [get]
+// @Security     cookieAuth
+func (h *BudgetsHandler) Get(c *gin.Context) {
+	id := c.Param("id")
+	budget, err := h.Server.Store.Budgets.ByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.ErrorResponse{Error: "budget not found"})
+		return
+	}
+	c.JSON(http.StatusOK, budget)
+}

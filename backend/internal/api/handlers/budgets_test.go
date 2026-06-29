@@ -260,6 +260,65 @@ func TestBudgets_Update_HTTP(t *testing.T) {
 
 // --- TestBudgets_Delete_HTTP ---------------------------------------------
 
+func TestBudgets_Get_HTTP(t *testing.T) {
+	t.Run("valid id returns 200 with the budget row", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		categoryID := s.SeededCategoryID(t, "Habitatge")
+
+		// Create the budget first so we have a real id to look up.
+		var created map[string]any
+		w := s.DoJSON(t, http.MethodPost, "/api/budgets", map[string]any{
+			"categoryId":  categoryID,
+			"month":       "2026-10",
+			"amountCents": 12345,
+		}, &created)
+		if w.Code != http.StatusOK {
+			t.Fatalf("upsert seed: %d %s", w.Code, w.Body.String())
+		}
+		id, _ := created["id"].(string)
+		if id == "" {
+			t.Fatal("created.id is empty")
+		}
+
+		var resp models.Budget
+		w = s.DoJSON(t, http.MethodGet, "/api/budgets/"+id, nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body: %s)", w.Code, w.Body.String())
+		}
+		if resp.ID != id {
+			t.Errorf("id = %q, want %q", resp.ID, id)
+		}
+		if resp.AmountCents != 12345 {
+			t.Errorf("amountCents = %d, want 12345", resp.AmountCents)
+		}
+		if resp.Month != "2026-10" {
+			t.Errorf("month = %q, want '2026-10'", resp.Month)
+		}
+	})
+
+	t.Run("unknown id returns 404 with 'budget not found'", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		var resp models.ErrorResponse
+		w := s.DoJSON(t, http.MethodGet, "/api/budgets/no-such-id", nil, &resp)
+		if w.Code != http.StatusNotFound {
+			t.Errorf("status = %d, want 404", w.Code)
+		}
+		if resp.Error != "budget not found" {
+			t.Errorf("error = %q, want 'budget not found'", resp.Error)
+		}
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		w := s.DoJSON(t, http.MethodGet, "/api/budgets/any-id", nil, nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
+		}
+	})
+}
+
+// --- TestBudgets_Delete_HTTP ---------------------------------------------
+
 func TestBudgets_Delete_HTTP(t *testing.T) {
 	t.Run("valid id returns 200 with ok:true", func(t *testing.T) {
 		s, _ := loginAsAdmin(t)
