@@ -68,18 +68,18 @@ func TestDashboard_Summary_HTTP(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200 (body: %s)", w.Code, w.Body.String())
 		}
-		if income, _ := resp["income"].(float64); int(income) != 3000 {
-			t.Errorf("income = %v, want 3000", resp["income"])
+		if income, _ := resp["incomeCents"].(float64); int(income) != 3000 {
+			t.Errorf("income = %v, want 3000", resp["incomeCents"])
 		}
-		if expense, _ := resp["expense"].(float64); int(expense) != 1200 {
-			t.Errorf("expense = %v, want 1200", resp["expense"])
+		if expense, _ := resp["expenseCents"].(float64); int(expense) != 1200 {
+			t.Errorf("expense = %v, want 1200", resp["expenseCents"])
 		}
 		// net = income - expense = 1800 (store computes net from signed sum).
-		if net, _ := resp["net"].(float64); int(net) != 1800 {
-			t.Errorf("net = %v, want 1800 (3000 - 1200)", resp["net"])
+		if net, _ := resp["netSavingsCents"].(float64); int(net) != 1800 {
+			t.Errorf("net = %v, want 1800 (3000 - 1200)", resp["netSavingsCents"])
 		}
-		if count, _ := resp["count"].(float64); int(count) != 2 {
-			t.Errorf("count = %v, want 2", resp["count"])
+		if count, _ := resp["transactionCount"].(float64); int(count) != 2 {
+			t.Errorf("count = %v, want 2", resp["transactionCount"])
 		}
 	})
 
@@ -109,11 +109,11 @@ func TestDashboard_Summary_HTTP(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
 		}
-		if count, _ := resp["count"].(float64); int(count) != 1 {
-			t.Errorf("count = %v, want 1 (May tx excluded by date range)", resp["count"])
+		if count, _ := resp["transactionCount"].(float64); int(count) != 1 {
+			t.Errorf("count = %v, want 1 (May tx excluded by date range)", resp["transactionCount"])
 		}
-		if income, _ := resp["income"].(float64); int(income) != 1000 {
-			t.Errorf("income = %v, want 1000", resp["income"])
+		if income, _ := resp["incomeCents"].(float64); int(income) != 1000 {
+			t.Errorf("income = %v, want 1000", resp["incomeCents"])
 		}
 	})
 

@@ -274,14 +274,14 @@ func TestDashboard_Summary(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Summary failed: %v", err)
 		}
-		if summary.Income != 8000 {
-			t.Errorf("income = %d, want 8000", summary.Income)
+		if summary.IncomeCents != 8000 {
+			t.Errorf("income = %d, want 8000", summary.IncomeCents)
 		}
-		if summary.Expense != 3000 {
-			t.Errorf("expense = %d, want 3000", summary.Expense)
+		if summary.ExpenseCents != 3000 {
+			t.Errorf("expense = %d, want 3000", summary.ExpenseCents)
 		}
-		if summary.Net != 5000 {
-			t.Errorf("net = %d, want 5000", summary.Net)
+		if summary.NetSavingsCents != 5000 {
+			t.Errorf("net = %d, want 5000", summary.NetSavingsCents)
 		}
 	})
 }

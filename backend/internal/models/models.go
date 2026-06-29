@@ -275,12 +275,14 @@ type ReorderReq struct {
 }
 
 // SummaryByMonthItem is one row in the monthly summary.
+// Money fields are integer cents — the JSON name carries the unit so
+// downstream consumers don't accidentally treat the value as euros.
 type SummaryByMonthItem struct {
-	Month   string `json:"month"`
-	Income  int    `json:"income"`
-	Expense int    `json:"expense"`
-	Net     int    `json:"net"`
-	Count   int    `json:"count"`
+	Month        string `json:"month"`
+	IncomeCents  int    `json:"incomeCents"`
+	ExpenseCents int    `json:"expenseCents"`
+	NetCents     int    `json:"netCents"`
+	Count        int    `json:"count"`
 }
 
 // SummaryByCategoryItem is one row in the category summary.
@@ -292,12 +294,14 @@ type SummaryByCategoryItem struct {
 }
 
 // DashboardSummary is the response for GET /dashboard/summary.
+// Money fields are integer cents — JSON tag carries the unit so the
+// frontend never confuses cents for euros.
 type DashboardSummary struct {
-	Income     int                     `json:"income"`
-	Expense    int                     `json:"expense"`
-	Net        int                     `json:"net"`
-	Count      int                     `json:"count"`
-	ByCategory []SummaryByCategoryItem `json:"byCategory"`
+	IncomeCents      int                     `json:"incomeCents"`
+	ExpenseCents     int                     `json:"expenseCents"`
+	NetSavingsCents  int                     `json:"netSavingsCents"`
+	TransactionCount int                     `json:"transactionCount"`
+	ByCategory       []SummaryByCategoryItem `json:"byCategory"`
 }
 
 // now is a helper to get current UTC ISO string.
