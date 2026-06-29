@@ -75,21 +75,47 @@ func TestBudgets_Upsert_HTTP(t *testing.T) {
 		}
 	})
 
-	t.Run("invalid month format is silently accepted (production bug)", func(t *testing.T) {
-		// The SDD spec said Upsert should reject "2026-13" with 400.
-		// In production, the month is stored as-is and only validated
-		// later in Status() via time.Parse. The handler does not
-		// pre-validate. This test pins the current behavior; a future
-		// fix should flip both the production code and this test.
+	t.Run("invalid month format returns 400 with 'month must be YYYY-MM'", func(t *testing.T) {
+		// Spec criterion 3: Upsert rejects out-of-range month with a
+		// structured 400 instead of silently storing it.
 		s, _ := loginAsAdmin(t)
 		body := map[string]any{
 			"categoryId":  s.SeededCategoryID(t, "Habitatge"),
 			"month":       "2026-13",
 			"amountCents": 1000,
 		}
-		w := s.DoJSON(t, http.MethodPost, "/api/budgets", body, nil)
-		if w.Code != http.StatusOK {
-			t.Errorf("status = %d, want 200 (current production behavior; should be 400 after fix)", w.Code)
+		var resp models.ErrorResponse
+		w := s.DoJSON(t, http.MethodPost, "/api/budgets", body, &resp)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400 (body: %s)", w.Code, w.Body.String())
+		}
+		if resp.Error != "month must be YYYY-MM" {
+			t.Errorf("error = %q, want 'month must be YYYY-MM'", resp.Error)
+		}
+	})
+
+	t.Run("various invalid month formats are 400", func(t *testing.T) {
+		// Spec criterion 4: every malformed YYYY-MM token gets rejected
+		// with the same structured error.
+		tests := []string{"2026-00", "2026-1", "26-06", "2026/06"}
+		for _, month := range tests {
+			month := month
+			t.Run(month, func(t *testing.T) {
+				s, _ := loginAsAdmin(t)
+				body := map[string]any{
+					"categoryId":  s.SeededCategoryID(t, "Habitatge"),
+					"month":       month,
+					"amountCents": 1000,
+				}
+				var resp models.ErrorResponse
+				w := s.DoJSON(t, http.MethodPost, "/api/budgets", body, &resp)
+				if w.Code != http.StatusBadRequest {
+					t.Errorf("status = %d, want 400 (body: %s)", w.Code, w.Body.String())
+				}
+				if resp.Error != "month must be YYYY-MM" {
+					t.Errorf("error = %q, want 'month must be YYYY-MM'", resp.Error)
+				}
+			})
 		}
 	})
 

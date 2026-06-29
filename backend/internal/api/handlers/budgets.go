@@ -2,11 +2,16 @@ package handlers
 
 import (
 	"net/http"
+	"regexp"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mgurt/finances/internal/apitypes"
 	"github.com/mgurt/finances/internal/models"
 )
+
+// monthRe enforces YYYY-MM with month in 01..12. Compiled once at package
+// load; the handler invokes it on every Upsert.
+var monthRe = regexp.MustCompile(`^(\d{4})-(0[1-9]|1[0-2])$`)
 
 // BudgetsHandler handles budget endpoints.
 type BudgetsHandler struct {
@@ -54,6 +59,14 @@ func (h *BudgetsHandler) Upsert(c *gin.Context) {
 	var req models.UpsertBudgetReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid request"})
+		return
+	}
+
+	// Reject malformed month values up front. The DB row would otherwise
+	// store "2026-13" verbatim and only fail later inside Status()'s
+	// time.Parse, by which point the user has already lost the 400.
+	if !monthRe.MatchString(req.Month) {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "month must be YYYY-MM"})
 		return
 	}
 
