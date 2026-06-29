@@ -2,10 +2,10 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/mgurt/finances/internal/api/handlers"
 	"github.com/mgurt/finances/internal/apitypes"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // RegisterRoutes registers all API routes on the given Gin engine.
@@ -26,7 +26,13 @@ func RegisterRoutes(r *gin.Engine, srv *apitypes.Server) {
 		authHandler := handlers.NewAuthHandler(srv)
 		apiGroup.POST("/auth/login", authHandler.Login)
 		apiGroup.POST("/auth/logout", authHandler.Logout)
-		apiGroup.GET("/auth/status", authHandler.AuthStatus)
+		// authOptional sets c.Get("authenticated") (via AuthMiddleware)
+		// for endpoints that MUST answer for guests without 401ing them.
+		// Any future endpoint that reads authentication state without
+		// requiring it goes here.
+		authOptional := apiGroup.Group("")
+		authOptional.Use(AuthMiddleware(srv))
+		authOptional.GET("/auth/status", authHandler.AuthStatus)
 
 		// Protected routes - require auth
 		protected := apiGroup.Group("")

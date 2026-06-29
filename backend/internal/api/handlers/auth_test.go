@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mgurt/finances/internal/api/testutil"
 	"github.com/mgurt/finances/internal/models"
@@ -109,11 +110,10 @@ func TestLogout(t *testing.T) {
 
 // TestAuthStatus covers GET /api/auth/status.
 //
-// Note: in production, /api/auth/status is NOT wrapped by AuthMiddleware
-// (see routes.go), so the handler always reads "authenticated" as unset
-// and returns authenticated:false. This is a known bug — the test pins
-// the current production behavior so a future fix can flip both at
-// once.
+// /api/auth/status now lives on an authOptional sub-group that runs
+// AuthMiddleware but not RequireAuth — the handler reads
+// c.Get("authenticated") and returns "authenticated":true plus the
+// JWT issuance time when a valid cookie is presented.
 func TestAuthStatus(t *testing.T) {
 	t.Run("returns 200 + authenticated:false with no cookie", func(t *testing.T) {
 		s := testutil.NewServer(t)
@@ -127,9 +127,12 @@ func TestAuthStatus(t *testing.T) {
 		if resp.Authenticated {
 			t.Error("authenticated = true with no cookie, want false")
 		}
+		if resp.IssuedAt != nil && *resp.IssuedAt != "" {
+			t.Errorf("issuedAt = %q with no cookie, want nil/empty", *resp.IssuedAt)
+		}
 	})
 
-	t.Run("returns 200 + authenticated:false with a valid cookie (production bug)", func(t *testing.T) {
+	t.Run("returns 200 + authenticated:true with a valid cookie", func(t *testing.T) {
 		s := testutil.NewServer(t)
 		s.Cookie = s.Login(t)
 
@@ -139,10 +142,26 @@ func TestAuthStatus(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Errorf("status = %d, want 200", w.Code)
 		}
-		// Documented bug: AuthMiddleware is not applied to /auth/status,
-		// so the handler reports false even with a valid cookie.
-		if resp.Authenticated {
-			t.Error("authenticated = true — production bug was fixed? Update this test.")
+		if !resp.Authenticated {
+			t.Error("authenticated = false, want true (with a valid cookie after authOptional middleware fix)")
+		}
+	})
+
+	t.Run("returns IssuedAt non-empty and RFC3339 with a valid cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		s.Cookie = s.Login(t)
+
+		var resp models.AuthStatusResponse
+		w := s.DoJSON(t, http.MethodGet, "/api/auth/status", nil, &resp)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
+		if resp.IssuedAt == nil || *resp.IssuedAt == "" {
+			t.Fatalf("issuedAt = %v, want non-empty RFC3339 timestamp", resp.IssuedAt)
+		}
+		if _, err := time.Parse(time.RFC3339, *resp.IssuedAt); err != nil {
+			t.Errorf("issuedAt %q is not RFC3339: %v", *resp.IssuedAt, err)
 		}
 	})
 }
