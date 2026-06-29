@@ -339,12 +339,15 @@ func TestCategories_Archive_HTTP(t *testing.T) {
 }
 
 // Note: CategoriesHandler has no Delete method, and routes.go does not
-// register DELETE /api/categories/:id. The SDD spec listed a
-// TestCategories_Delete_HTTP scenario, but adding it would require
-// production changes (new handler method + new route), which is out of
-// scope per the no-production-changes rule for this change. The actual
-// handler has 6 methods (List, Tree, ByID, Create, Update, Archive,
-// Reorder) — all covered above and in the Reorder test below.
+// register DELETE /api/categories/:id. The criterion from the
+// improve-api-testing spec is explicitly OUT-OF-SCOPE-BY-DECISION for
+// fix-api-production-bugs (see proposal s3). Rationale: categories are
+// referenced by transactions.category_id and budgets.category_id (FK
+// NO ACTION); a hard delete with referenced data fails. The existing
+// Archive (PATCH /api/categories/:id/archive) covers the soft-delete
+// use case. The handler has 6 methods (List, Tree, ByID, Create,
+// Update, Archive, Reorder) — all covered above and in the Reorder test
+// below.
 
 // --- TestCategories_Reorder_HTTP ------------------------------------------
 
