@@ -81,10 +81,10 @@ type CreateAccountReq struct {
 
 // UpdateAccountReq is the request body for PUT /accounts/:id.
 type UpdateAccountReq struct {
-	Name   string `json:"name"`
-	Type   string `json:"type"`
-	Color  string `json:"color"`
-	Icon   string `json:"icon"`
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Color string `json:"color"`
+	Icon  string `json:"icon"`
 }
 
 // AccountWithBalance combines an account with its current balance.
@@ -132,62 +132,62 @@ type CategoryNode struct {
 
 // Transaction represents a financial transaction.
 type Transaction struct {
-	ID               string  `json:"id"`
-	AccountID        string  `json:"accountId"`
-	CategoryID       *string `json:"categoryId"`
-	Kind             string  `json:"kind"` // income|expense|transfer
-	Amount           int     `json:"amount"`
-	Description      string  `json:"description"`
-	Notes            string  `json:"notes"`
-	Date             string  `json:"date"`
-	ImportHash       *string `json:"importHash"`
+	ID                string  `json:"id"`
+	AccountID         string  `json:"accountId"`
+	CategoryID        *string `json:"categoryId"`
+	Kind              string  `json:"kind"` // income|expense|transfer
+	Amount            int     `json:"amount"`
+	Description       string  `json:"description"`
+	Notes             string  `json:"notes"`
+	Date              string  `json:"date"`
+	ImportHash        *string `json:"importHash"`
 	TransferAccountID *string `json:"transferAccountId"`
-	CreatedAt        string  `json:"createdAt"`
-	UpdatedAt        string  `json:"updatedAt"`
+	CreatedAt         string  `json:"createdAt"`
+	UpdatedAt         string  `json:"updatedAt"`
 }
 
 // CreateTransactionReq is the request body for POST /transactions.
 type CreateTransactionReq struct {
-	AccountID        string  `json:"accountId" binding:"required"`
-	CategoryID       *string `json:"categoryId"`
-	Kind             string  `json:"kind" binding:"required"`
-	Amount           int     `json:"amount" binding:"required"`
-	Description      string  `json:"description"`
-	Notes            string  `json:"notes"`
-	Date             string  `json:"date" binding:"required"`
-	ImportHash       *string `json:"importHash"`
+	AccountID         string  `json:"accountId" binding:"required"`
+	CategoryID        *string `json:"categoryId"`
+	Kind              string  `json:"kind" binding:"required"`
+	Amount            int     `json:"amount" binding:"required"`
+	Description       string  `json:"description"`
+	Notes             string  `json:"notes"`
+	Date              string  `json:"date" binding:"required"`
+	ImportHash        *string `json:"importHash"`
 	TransferAccountID *string `json:"transferAccountId"`
 }
 
 // UpdateTransactionReq is the request body for PUT /transactions/:id.
 type UpdateTransactionReq struct {
-	CategoryID       *string `json:"categoryId"`
-	Kind             string  `json:"kind"`
-	Amount           int     `json:"amount"`
-	Description      string  `json:"description"`
-	Notes            string  `json:"notes"`
-	Date             string  `json:"date"`
+	CategoryID        *string `json:"categoryId"`
+	Kind              string  `json:"kind"`
+	Amount            int     `json:"amount"`
+	Description       string  `json:"description"`
+	Notes             string  `json:"notes"`
+	Date              string  `json:"date"`
 	TransferAccountID *string `json:"transferAccountId"`
 }
 
 // TransactionWithDetails includes account and category names for display.
 type TransactionWithDetails struct {
 	Transaction
-	AccountName     string `json:"accountName"`
-	CategoryName    string `json:"categoryName,omitempty"`
+	AccountName         string `json:"accountName"`
+	CategoryName        string `json:"categoryName,omitempty"`
 	TransferAccountName string `json:"transferAccountName,omitempty"`
 }
 
 // BulkCreateItem is one item in a bulk create request.
 type BulkCreateItem struct {
-	AccountID        string  `json:"accountId" binding:"required"`
-	CategoryID       *string `json:"categoryId"`
-	Kind             string  `json:"kind" binding:"required"`
-	Amount           int     `json:"amount" binding:"required"`
-	Description      string  `json:"description"`
-	Notes            string  `json:"notes"`
-	Date             string  `json:"date" binding:"required"`
-	ImportHash       *string `json:"importHash"`
+	AccountID         string  `json:"accountId" binding:"required"`
+	CategoryID        *string `json:"categoryId"`
+	Kind              string  `json:"kind" binding:"required"`
+	Amount            int     `json:"amount" binding:"required"`
+	Description       string  `json:"description"`
+	Notes             string  `json:"notes"`
+	Date              string  `json:"date" binding:"required"`
+	ImportHash        *string `json:"importHash"`
 	TransferAccountID *string `json:"transferAccountId"`
 }
 
@@ -233,16 +233,16 @@ type UpdateBudgetReq struct {
 // BudgetID is empty and BudgetCents is 0 — the UI uses these as the
 // signal to render a "Create" form instead of "Update".
 type BudgetStatusItem struct {
-	BudgetID       string  `json:"budgetId"`               // empty for orphans
-	CategoryID     *string `json:"categoryId"`             // nil for global
+	BudgetID       string  `json:"budgetId"`   // empty for orphans
+	CategoryID     *string `json:"categoryId"` // nil for global
 	CategoryName   string  `json:"categoryName"`
 	CategoryColor  string  `json:"categoryColor,omitempty"` // empty for global
 	Month          string  `json:"month"`
-	BudgetCents    int     `json:"budgetCents"`             // 0 for orphans
+	BudgetCents    int     `json:"budgetCents"` // 0 for orphans
 	SpentCents     int     `json:"spentCents"`
 	RemainingCents int     `json:"remainingCents"`
-	Percent        float64 `json:"percent"`                 // 0 for orphans
-	Status         string  `json:"status"`                  // on_track | warning | over
+	Percent        float64 `json:"percent"` // 0 for orphans
+	Status         string  `json:"status"`  // on_track | warning | over
 }
 
 // ErrorResponse is the standard error payload.
@@ -276,11 +276,11 @@ type ReorderReq struct {
 
 // SummaryByMonthItem is one row in the monthly summary.
 type SummaryByMonthItem struct {
-	Month    string `json:"month"`
-	Income   int    `json:"income"`
-	Expense  int    `json:"expense"`
-	Net      int    `json:"net"`
-	Count    int    `json:"count"`
+	Month   string `json:"month"`
+	Income  int    `json:"income"`
+	Expense int    `json:"expense"`
+	Net     int    `json:"net"`
+	Count   int    `json:"count"`
 }
 
 // SummaryByCategoryItem is one row in the category summary.
@@ -293,11 +293,11 @@ type SummaryByCategoryItem struct {
 
 // DashboardSummary is the response for GET /dashboard/summary.
 type DashboardSummary struct {
-	Income     int                       `json:"income"`
-	Expense    int                       `json:"expense"`
-	Net        int                       `json:"net"`
-	Count      int                       `json:"count"`
-	ByCategory []SummaryByCategoryItem   `json:"byCategory"`
+	Income     int                     `json:"income"`
+	Expense    int                     `json:"expense"`
+	Net        int                     `json:"net"`
+	Count      int                     `json:"count"`
+	ByCategory []SummaryByCategoryItem `json:"byCategory"`
 }
 
 // now is a helper to get current UTC ISO string.
