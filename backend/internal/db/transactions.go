@@ -367,7 +367,7 @@ func (t *TransactionsStore) SummaryByMonth(months int) ([]models.SummaryByMonthI
 	var summaries []models.SummaryByMonthItem
 	for rows.Next() {
 		var s models.SummaryByMonthItem
-		err := rows.Scan(&s.Month, &s.Income, &s.Expense, &s.Net, &s.Count)
+		err := rows.Scan(&s.Month, &s.IncomeCents, &s.ExpenseCents, &s.NetCents, &s.Count)
 		if err != nil {
 			return nil, err
 		}

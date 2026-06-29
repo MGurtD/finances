@@ -487,11 +487,11 @@ func TestTransactions_SummaryByMonth(t *testing.T) {
 		if summary[0].Month != "2026-01" {
 			t.Errorf("first month = %q, want '2026-01'", summary[0].Month)
 		}
-		if summary[0].Income != 5000 {
-			t.Errorf("income = %d, want 5000", summary[0].Income)
+		if summary[0].IncomeCents != 5000 {
+			t.Errorf("income = %d, want 5000", summary[0].IncomeCents)
 		}
-		if summary[0].Expense != 2000 {
-			t.Errorf("expense = %d, want 2000", summary[0].Expense)
+		if summary[0].ExpenseCents != 2000 {
+			t.Errorf("expense = %d, want 2000", summary[0].ExpenseCents)
 		}
 	})
 }

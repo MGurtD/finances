@@ -78,7 +78,7 @@ export interface RecentTransaction {
   kind: TransactionKind;
 }
 
-// Monthly summary — field names match Go struct: income/expense in cents
+// Monthly summary — JSON field names match the Go struct tags.
 export interface MonthlySummary {
   month: string;
   incomeCents: number;
@@ -96,8 +96,6 @@ export interface CategoryBreakdown {
 }
 
 export interface DashboardSummary {
-  from: string;
-  to: string;
   incomeCents: number;
   expenseCents: number;
   netSavingsCents: number;

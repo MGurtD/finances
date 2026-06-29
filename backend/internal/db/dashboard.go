@@ -34,10 +34,10 @@ func (d *DashboardStore) Summary(from, to string) (*models.DashboardSummary, err
 	}
 
 	return &models.DashboardSummary{
-		Income:     income,
-		Expense:    expense,
-		Net:        net,
-		Count:      count,
-		ByCategory: byCategory,
+		IncomeCents:      income,
+		ExpenseCents:     expense,
+		NetSavingsCents:  net,
+		TransactionCount: count,
+		ByCategory:       byCategory,
 	}, nil
 }

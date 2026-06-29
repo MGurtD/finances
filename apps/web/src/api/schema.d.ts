@@ -2164,10 +2164,10 @@ export interface components {
         };
         "github_com_mgurt_finances_internal_models.DashboardSummary": {
             byCategory?: components["schemas"]["github_com_mgurt_finances_internal_models.SummaryByCategoryItem"][];
-            count?: number;
-            expense?: number;
-            income?: number;
-            net?: number;
+            expenseCents?: number;
+            incomeCents?: number;
+            netSavingsCents?: number;
+            transactionCount?: number;
         };
         "github_com_mgurt_finances_internal_models.ErrorResponse": {
             error?: string;
@@ -2192,10 +2192,10 @@ export interface components {
         };
         "github_com_mgurt_finances_internal_models.SummaryByMonthItem": {
             count?: number;
-            expense?: number;
-            income?: number;
+            expenseCents?: number;
+            incomeCents?: number;
             month?: string;
-            net?: number;
+            netCents?: number;
         };
         "github_com_mgurt_finances_internal_models.Transaction": {
             accountId?: string;
