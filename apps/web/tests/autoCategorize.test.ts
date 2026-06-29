@@ -512,6 +512,26 @@ describe('loans / debts (BANCO CETELEM, AMORTIZACION DEUDA)', () => {
   });
 });
 
+// ─── cat Req 2 — Charter / school (Família) ────────────────────────────
+
+describe('charter / school (Família)', () => {
+  it('CHARTER EDUARD TOLDRA ESPLUGUES DE 34610 → Família', () => {
+    expect(
+      autoCategorizeId(
+        'CHARTER EDUARD TOLDRA ESPLUGUES DE 34610',
+        CATS,
+        'expense',
+      ),
+    ).toBe('cat-familia');
+  });
+
+  it('merchant token `charter` exists in the dictionary pointing to Família', () => {
+    const tok = MERCHANT_TOKENS_SORTED.find((t) => t.token === 'charter');
+    expect(tok).toBeDefined();
+    expect(tok!.entry.categoryName).toBe('Família');
+  });
+});
+
 // ─── cat Req 3 — Digital subscriptions (asterisk variants) ─────────────
 
 describe('digital subscriptions (asterisk variants)', () => {
