@@ -11,6 +11,7 @@ import {
 } from '@/utils/importParsers';
 import { suggestImporter } from '@/utils/importers';
 import { parseCsv as parseIndexaCsv } from '@/utils/importers/indexaCapital';
+import { parseCsv as parseAbancaCsv } from '@/utils/importers/abanca';
 
 // ─── Indexa Capital importer — header literal from the spec ─────────────
 const INDEXA_HEADER_CONTENT =
@@ -32,6 +33,37 @@ const INDEXA_SUSCRIPCION_CSV = [
 const INDEXA_SUSCRIPCION_POR_TRASPASO_CSV = [
   INDEXA_HEADER_CONTENT,
   '08/05/2026;10/05/2026;Amundi MSCI World;LU2009202107;SUSCRIPCIÓN POR TRASPASO;0,500000;"75,00 €";"0,00 €";"0,00 €"',
+].join('\n');
+
+// ─── Abanca importer — header literal from the spec ────────────────────
+const ABANCA_HEADER = 'Fecha;Concepto;Saldo;Importe;Fecha operación;Fecha valor';
+
+// 5-row Abanca content used by the POS stripping tests (mixed POS variants).
+const ABANCA_FIVE_ROWS_CSV = [
+  ABANCA_HEADER,
+  '02-05-2026;MUTICK \\MADRID\\ES2605021101;1906.77 EUR;-120.0 EUR;2026-05-04T00:00:00;2026-05-02T00:00:00',
+  '03-05-2026;AMAZON ES_MARKETPLACE ES2604011743;1850.00 EUR;-25.50 EUR;2026-05-04T00:00:00;2026-05-03T00:00:00',
+  '04-05-2026;SPOTIFY ES2604061015;1810.00 EUR;-9.99 EUR;2026-05-05T00:00:00;2026-05-04T00:00:00',
+  '05-05-2026;BAR MIRADOR\\ES2604030924;1799.99 EUR;-23.40 EUR;2026-05-06T00:00:00;2026-05-05T00:00:00',
+  '06-05-2026;JUST EAT ESPLUGUES\\ES2604041039;1776.59 EUR;-15.60 EUR;2026-05-07T00:00:00;2026-05-06T00:00:00',
+].join('\n');
+
+// Single-row CSV exercising the 'single space before POS' variant.
+const ABANCA_SPACE_POS_CSV = [
+  ABANCA_HEADER,
+  '02-05-2026;MUTICK MADRID ES2604071000;1906.77 EUR;-120.0 EUR;2026-05-04T00:00:00;2026-05-02T00:00:00',
+].join('\n');
+
+// ROW used by tests #6, #5 (CHARTER no POS code).
+const ABANCA_CHARTER_ROW_CSV = [
+  ABANCA_HEADER,
+  '01-05-2026;CHARTER EDUARD TOLDRA ESPLUGUES DE 34610;2033.43 EUR;-9.45 EUR;2026-05-04T00:00:00;2026-04-29T00:00:00',
+].join('\n');
+
+// 'Marc Gurt Dot;+100.0' incoming transfer scenario.
+const ABANCA_INCOMING_CSV = [
+  ABANCA_HEADER,
+  '15-05-2026;Marc Gurt Dot;0.00 EUR;+100.0 EUR;2026-05-15T00:00:00;2026-05-15T00:00:00',
 ].join('\n');
 
 // Resolve the real Marc's CSV fixture shipped under tests/fixtures.
@@ -305,5 +337,99 @@ describe('indexa-capital importer — importHash determinism', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]?.description).toBe(rows[1]?.description);
     expect(rows[0]?.importHash).not.toBe(rows[1]?.importHash);
+  });
+});
+
+// ─── Abanca importer (csv-imports Reqs 4, 5, 6) ────────────────────────
+
+describe('abanca importer — detection', () => {
+  it('detects by filename "Abanca_Transacciones.csv"', () => {
+    const suggestion = suggestImporter(
+      'Abanca_Transacciones.csv',
+      `${ABANCA_HEADER}\n01-05-2026;CHARTER ESPLUGUES DE 34610;2033.43 EUR;-9.45 EUR;2026-05-04T00:00:00;2026-04-29T00:00:00`,
+    );
+    expect(suggestion.primary?.id).toBe('abanca');
+    expect(suggestion.confidence).toBeGreaterThanOrEqual(0.4);
+  });
+
+  it('detects by exact header literal even when filename is generic', () => {
+    const suggestion = suggestImporter('extracte.csv', ABANCA_HEADER);
+    expect(suggestion.primary?.id).toBe('abanca');
+  });
+});
+
+describe('abanca importer — Concepto POS stripping', () => {
+  it('5 mixed Concepto variants all lose the trailing ES\\d{10}', () => {
+    const rows = parseAbancaCsv(ABANCA_FIVE_ROWS_CSV);
+    expect(rows).toHaveLength(5);
+    for (const r of rows) {
+      expect(r.description).not.toMatch(/ES\d{10}/);
+    }
+  });
+
+  it('strips " ES…" form (single space before POS)', () => {
+    const rows = parseAbancaCsv(ABANCA_SPACE_POS_CSV);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.description).toBe('MUTICK MADRID');
+    expect(rows[0]?.description).not.toMatch(/ES\d{10}/);
+  });
+
+  it('leaves a Concepto without a POS code untouched', () => {
+    const rows = parseAbancaCsv(ABANCA_CHARTER_ROW_CSV);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.description).toBe(
+      'CHARTER EDUARD TOLDRA ESPLUGUES DE 34610',
+    );
+  });
+});
+
+describe('abanca importer — parseCsv', () => {
+  it('CHARTER EDUARD TOLDRA → date 2026-04-29 (Fecha valor), expense, -945c', () => {
+    const rows = parseAbancaCsv(ABANCA_CHARTER_ROW_CSV);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      date: '2026-04-29',
+      amountCents: -945,
+      kind: 'expense',
+      description: 'CHARTER EDUARD TOLDRA ESPLUGUES DE 34610',
+    });
+  });
+
+  it('MUTICK \\MADRID\\ES2605021101 → POS stripped, amount preserved', () => {
+    const rows = parseAbancaCsv(ABANCA_FIVE_ROWS_CSV);
+    const mutick = rows.find((r) => r.description.includes('MUTICK'));
+    expect(mutick).toBeDefined();
+    expect(mutick?.description).toBe('MUTICK \\MADRID');
+    expect(mutick?.amountCents).toBe(-12000);
+    expect(mutick?.kind).toBe('expense');
+  });
+
+  it('incoming transfer with +100.0 EUR → kind="income" and 10000c', () => {
+    const rows = parseAbancaCsv(ABANCA_INCOMING_CSV);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.amountCents).toBe(10000);
+    expect(rows[0]?.kind).toBe('income');
+  });
+
+  it('full Abanca fixture yields exactly 43 ParsedRow', () => {
+    const csv = readFileSync(
+      resolve(__dirname, 'fixtures/abanca-sample.csv'),
+      'utf8',
+    );
+    const rows = parseAbancaCsv(csv);
+    expect(rows.length).toBe(43);
+  });
+
+  it('parseCsv(AbancaContent) called twice → identical importHash per row', () => {
+    const csv = readFileSync(
+      resolve(__dirname, 'fixtures/abanca-sample.csv'),
+      'utf8',
+    );
+    const a = parseAbancaCsv(csv);
+    const b = parseAbancaCsv(csv);
+    expect(a).toHaveLength(b.length);
+    for (let i = 0; i < a.length; i++) {
+      expect(a[i]?.importHash).toBe(b[i]?.importHash);
+    }
   });
 });
