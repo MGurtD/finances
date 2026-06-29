@@ -356,10 +356,10 @@ func TestTransactions_Update_HTTP(t *testing.T) {
 
 		var resp map[string]any
 		w := s.DoJSON(t, http.MethodPut, "/api/transactions/"+id, map[string]any{
-			"amount":     -200,
-			"date":       "2026-06-02",
-			"kind":       "expense",
-			"accountId":  accountID,
+			"amount":    -200,
+			"date":      "2026-06-02",
+			"kind":      "expense",
+			"accountId": accountID,
 		}, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200 (body: %s)", w.Code, w.Body.String())

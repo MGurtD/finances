@@ -188,9 +188,9 @@ func TestCategories_Create_HTTP(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 
 		body := map[string]any{
-			"name": "Test New Category",
-			"kind": "expense",
-			"icon": "tag",
+			"name":  "Test New Category",
+			"kind":  "expense",
+			"icon":  "tag",
 			"color": "#FF00FF",
 		}
 		var resp map[string]any
