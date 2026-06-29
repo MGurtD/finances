@@ -33,7 +33,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Account"][];
+                        "application/json": components["schemas"]["models.Account"][];
                     };
                 };
                 /** @description Unauthorized */
@@ -42,7 +42,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -62,7 +62,7 @@ export interface paths {
             /** @description account data */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.CreateAccountReq"];
+                    "application/json": components["schemas"]["models.CreateAccountReq"];
                 };
             };
             responses: {
@@ -72,7 +72,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Account"];
+                        "application/json": components["schemas"]["models.Account"];
                     };
                 };
                 /** @description Bad Request */
@@ -81,7 +81,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -90,7 +90,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -127,7 +127,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.AccountWithBalance"][];
+                        "application/json": components["schemas"]["models.AccountWithBalance"][];
                     };
                 };
                 /** @description Unauthorized */
@@ -136,7 +136,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -172,7 +172,7 @@ export interface paths {
             /** @description ordered account IDs */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ReorderReq"];
+                    "application/json": components["schemas"]["models.ReorderReq"];
                 };
             };
             responses: {
@@ -193,7 +193,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -202,7 +202,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -242,7 +242,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Account"];
+                        "application/json": components["schemas"]["models.Account"];
                     };
                 };
                 /** @description Unauthorized */
@@ -251,7 +251,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -260,7 +260,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -282,7 +282,7 @@ export interface paths {
             /** @description account data */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.UpdateAccountReq"];
+                    "application/json": components["schemas"]["models.UpdateAccountReq"];
                 };
             };
             responses: {
@@ -292,7 +292,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Account"];
+                        "application/json": components["schemas"]["models.Account"];
                     };
                 };
                 /** @description Bad Request */
@@ -301,7 +301,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -310,7 +310,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -319,7 +319,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -358,7 +358,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -367,7 +367,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -412,7 +412,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Account"];
+                        "application/json": components["schemas"]["models.Account"];
                     };
                 };
                 /** @description Unauthorized */
@@ -421,7 +421,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -430,7 +430,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -460,7 +460,7 @@ export interface paths {
             /** @description Password credentials */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.LoginReq"];
+                    "application/json": components["schemas"]["models.LoginReq"];
                 };
             };
             responses: {
@@ -470,7 +470,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.AuthStatusResponse"];
+                        "application/json": components["schemas"]["models.AuthStatusResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -479,7 +479,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -488,7 +488,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Too Many Requests */
@@ -497,7 +497,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -536,7 +536,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.AuthStatusResponse"];
+                        "application/json": components["schemas"]["models.AuthStatusResponse"];
                     };
                 };
             };
@@ -573,7 +573,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.AuthStatusResponse"];
+                        "application/json": components["schemas"]["models.AuthStatusResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -582,7 +582,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -624,7 +624,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Budget"][];
+                        "application/json": components["schemas"]["models.Budget"][];
                     };
                 };
                 /** @description Unauthorized */
@@ -633,7 +633,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -653,7 +653,7 @@ export interface paths {
             /** @description budget data */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.UpsertBudgetReq"];
+                    "application/json": components["schemas"]["models.UpsertBudgetReq"];
                 };
             };
             responses: {
@@ -663,7 +663,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Budget"];
+                        "application/json": components["schemas"]["models.Budget"];
                     };
                 };
                 /** @description Bad Request */
@@ -672,7 +672,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -681,7 +681,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -721,7 +721,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.BudgetStatusItem"][];
+                        "application/json": components["schemas"]["models.BudgetStatusItem"][];
                     };
                 };
                 /** @description Bad Request */
@@ -730,7 +730,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -739,7 +739,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -759,7 +759,51 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get budget by ID
+         * @description Retrieve a single budget by its ID
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description budget ID */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["models.Budget"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["models.ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["models.ErrorResponse"];
+                    };
+                };
+            };
+        };
         /**
          * Update budget
          * @description Update an existing budget's amount
@@ -777,7 +821,7 @@ export interface paths {
             /** @description budget data */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.UpdateBudgetReq"];
+                    "application/json": components["schemas"]["models.UpdateBudgetReq"];
                 };
             };
             responses: {
@@ -787,7 +831,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Budget"];
+                        "application/json": components["schemas"]["models.Budget"];
                     };
                 };
                 /** @description Bad Request */
@@ -796,7 +840,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -805,7 +849,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -814,7 +858,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -853,7 +897,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -862,7 +906,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -898,7 +942,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Category"][];
+                        "application/json": components["schemas"]["models.Category"][];
                     };
                 };
                 /** @description Unauthorized */
@@ -907,7 +951,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -927,7 +971,7 @@ export interface paths {
             /** @description category data */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.CreateCategoryReq"];
+                    "application/json": components["schemas"]["models.CreateCategoryReq"];
                 };
             };
             responses: {
@@ -937,7 +981,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Category"];
+                        "application/json": components["schemas"]["models.Category"];
                     };
                 };
                 /** @description Bad Request */
@@ -946,7 +990,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -955,7 +999,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -989,7 +1033,7 @@ export interface paths {
             /** @description ordered category IDs */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ReorderReq"];
+                    "application/json": components["schemas"]["models.ReorderReq"];
                 };
             };
             responses: {
@@ -1010,7 +1054,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -1019,7 +1063,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1059,7 +1103,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.CategoryNode"][];
+                        "application/json": components["schemas"]["models.CategoryNode"][];
                     };
                 };
                 /** @description Unauthorized */
@@ -1068,7 +1112,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1110,7 +1154,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Category"];
+                        "application/json": components["schemas"]["models.Category"];
                     };
                 };
                 /** @description Unauthorized */
@@ -1119,7 +1163,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -1128,7 +1172,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1150,7 +1194,7 @@ export interface paths {
             /** @description category data */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.UpdateCategoryReq"];
+                    "application/json": components["schemas"]["models.UpdateCategoryReq"];
                 };
             };
             responses: {
@@ -1160,7 +1204,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Category"];
+                        "application/json": components["schemas"]["models.Category"];
                     };
                 };
                 /** @description Bad Request */
@@ -1169,7 +1213,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -1178,7 +1222,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -1187,7 +1231,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1234,7 +1278,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Category"];
+                        "application/json": components["schemas"]["models.Category"];
                     };
                 };
                 /** @description Unauthorized */
@@ -1243,7 +1287,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -1252,7 +1296,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1292,7 +1336,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.DashboardSummary"];
+                        "application/json": components["schemas"]["models.DashboardSummary"];
                     };
                 };
                 /** @description Bad Request */
@@ -1301,7 +1345,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -1310,7 +1354,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1366,7 +1410,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Transaction"][];
+                        "application/json": components["schemas"]["models.Transaction"][];
                     };
                 };
                 /** @description Unauthorized */
@@ -1375,7 +1419,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1395,7 +1439,7 @@ export interface paths {
             /** @description transaction data */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.CreateTransactionReq"];
+                    "application/json": components["schemas"]["models.CreateTransactionReq"];
                 };
             };
             responses: {
@@ -1405,7 +1449,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Transaction"];
+                        "application/json": components["schemas"]["models.Transaction"];
                     };
                 };
                 /** @description Bad Request */
@@ -1414,7 +1458,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -1423,7 +1467,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1457,7 +1501,7 @@ export interface paths {
             /** @description transactions to create */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.BulkCreateReq"];
+                    "application/json": components["schemas"]["models.BulkCreateReq"];
                 };
             };
             responses: {
@@ -1478,7 +1522,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -1487,7 +1531,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1522,7 +1566,7 @@ export interface paths {
             /** @description transaction IDs to delete */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.BulkDeleteReq"];
+                    "application/json": components["schemas"]["models.BulkDeleteReq"];
                 };
             };
             responses: {
@@ -1532,7 +1576,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.BulkDeleteResult"];
+                        "application/json": components["schemas"]["models.BulkDeleteResult"];
                     };
                 };
                 /** @description Bad Request */
@@ -1541,7 +1585,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -1550,7 +1594,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1598,7 +1642,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1642,7 +1686,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.TransactionWithDetails"][];
+                        "application/json": components["schemas"]["models.TransactionWithDetails"][];
                     };
                 };
                 /** @description Unauthorized */
@@ -1651,7 +1695,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1697,7 +1741,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.SummaryByCategoryItem"][];
+                        "application/json": components["schemas"]["models.SummaryByCategoryItem"][];
                     };
                 };
                 /** @description Bad Request */
@@ -1706,7 +1750,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -1715,7 +1759,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1757,7 +1801,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.SummaryByMonthItem"][];
+                        "application/json": components["schemas"]["models.SummaryByMonthItem"][];
                     };
                 };
                 /** @description Unauthorized */
@@ -1766,7 +1810,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1808,7 +1852,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Transaction"];
+                        "application/json": components["schemas"]["models.Transaction"];
                     };
                 };
                 /** @description Unauthorized */
@@ -1817,7 +1861,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -1826,7 +1870,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1848,7 +1892,7 @@ export interface paths {
             /** @description transaction data */
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.UpdateTransactionReq"];
+                    "application/json": components["schemas"]["models.UpdateTransactionReq"];
                 };
             };
             responses: {
@@ -1858,7 +1902,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.Transaction"];
+                        "application/json": components["schemas"]["models.Transaction"];
                     };
                 };
                 /** @description Bad Request */
@@ -1867,7 +1911,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Unauthorized */
@@ -1876,7 +1920,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -1885,7 +1929,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1924,7 +1968,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
                 /** @description Not Found */
@@ -1933,7 +1977,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.ErrorResponse"];
+                        "application/json": components["schemas"]["models.ErrorResponse"];
                     };
                 };
             };
@@ -1969,7 +2013,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_mgurt_finances_internal_models.HealthResponse"];
+                        "application/json": components["schemas"]["models.HealthResponse"];
                     };
                 };
             };
@@ -1986,7 +2030,7 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        "github_com_mgurt_finances_internal_models.Account": {
+        "models.Account": {
             archived?: number;
             color?: string;
             createdAt?: string;
@@ -2000,7 +2044,7 @@ export interface components {
             type?: string;
             updatedAt?: string;
         };
-        "github_com_mgurt_finances_internal_models.AccountWithBalance": {
+        "models.AccountWithBalance": {
             archived?: number;
             balance?: number;
             color?: string;
@@ -2015,11 +2059,11 @@ export interface components {
             type?: string;
             updatedAt?: string;
         };
-        "github_com_mgurt_finances_internal_models.AuthStatusResponse": {
+        "models.AuthStatusResponse": {
             authenticated?: boolean;
             issuedAt?: string;
         };
-        "github_com_mgurt_finances_internal_models.Budget": {
+        "models.Budget": {
             amountCents?: number;
             categoryId?: string;
             createdAt?: string;
@@ -2028,7 +2072,7 @@ export interface components {
             month?: string;
             updatedAt?: string;
         };
-        "github_com_mgurt_finances_internal_models.BudgetStatusItem": {
+        "models.BudgetStatusItem": {
             /** @description 0 for orphans */
             budgetCents?: number;
             /** @description empty for orphans */
@@ -2046,7 +2090,7 @@ export interface components {
             /** @description on_track | warning | over */
             status?: string;
         };
-        "github_com_mgurt_finances_internal_models.BulkCreateItem": {
+        "models.BulkCreateItem": {
             accountId: string;
             amount: number;
             categoryId?: string;
@@ -2057,16 +2101,16 @@ export interface components {
             notes?: string;
             transferAccountId?: string;
         };
-        "github_com_mgurt_finances_internal_models.BulkCreateReq": {
-            transactions: components["schemas"]["github_com_mgurt_finances_internal_models.BulkCreateItem"][];
+        "models.BulkCreateReq": {
+            transactions: components["schemas"]["models.BulkCreateItem"][];
         };
-        "github_com_mgurt_finances_internal_models.BulkDeleteReq": {
+        "models.BulkDeleteReq": {
             ids: string[];
         };
-        "github_com_mgurt_finances_internal_models.BulkDeleteResult": {
+        "models.BulkDeleteResult": {
             deleted?: number;
         };
-        "github_com_mgurt_finances_internal_models.Category": {
+        "models.Category": {
             archived?: number;
             color?: string;
             createdAt?: string;
@@ -2078,9 +2122,9 @@ export interface components {
             parentId?: string;
             sortOrder?: number;
         };
-        "github_com_mgurt_finances_internal_models.CategoryNode": {
+        "models.CategoryNode": {
             archived?: number;
-            children?: components["schemas"]["github_com_mgurt_finances_internal_models.CategoryNode"][];
+            children?: components["schemas"]["models.CategoryNode"][];
             color?: string;
             createdAt?: string;
             icon?: string;
@@ -2091,7 +2135,7 @@ export interface components {
             parentId?: string;
             sortOrder?: number;
         };
-        "github_com_mgurt_finances_internal_models.CreateAccountReq": {
+        "models.CreateAccountReq": {
             color?: string;
             currency?: string;
             icon?: string;
@@ -2099,7 +2143,7 @@ export interface components {
             name: string;
             type: string;
         };
-        "github_com_mgurt_finances_internal_models.CreateCategoryReq": {
+        "models.CreateCategoryReq": {
             color?: string;
             icon?: string;
             /** @description income|expense */
@@ -2107,7 +2151,7 @@ export interface components {
             name: string;
             parentId?: string;
         };
-        "github_com_mgurt_finances_internal_models.CreateTransactionReq": {
+        "models.CreateTransactionReq": {
             accountId: string;
             amount: number;
             categoryId?: string;
@@ -2118,42 +2162,42 @@ export interface components {
             notes?: string;
             transferAccountId?: string;
         };
-        "github_com_mgurt_finances_internal_models.DashboardSummary": {
-            byCategory?: components["schemas"]["github_com_mgurt_finances_internal_models.SummaryByCategoryItem"][];
+        "models.DashboardSummary": {
+            byCategory?: components["schemas"]["models.SummaryByCategoryItem"][];
             count?: number;
             expense?: number;
             income?: number;
             net?: number;
         };
-        "github_com_mgurt_finances_internal_models.ErrorResponse": {
+        "models.ErrorResponse": {
             error?: string;
         };
-        "github_com_mgurt_finances_internal_models.HealthResponse": {
+        "models.HealthResponse": {
             status?: string;
             timestamp?: string;
             uptime?: string;
             version?: string;
         };
-        "github_com_mgurt_finances_internal_models.LoginReq": {
+        "models.LoginReq": {
             password: string;
         };
-        "github_com_mgurt_finances_internal_models.ReorderReq": {
+        "models.ReorderReq": {
             order: string[];
         };
-        "github_com_mgurt_finances_internal_models.SummaryByCategoryItem": {
+        "models.SummaryByCategoryItem": {
             categoryId?: string;
             categoryName?: string;
             count?: number;
             total?: number;
         };
-        "github_com_mgurt_finances_internal_models.SummaryByMonthItem": {
+        "models.SummaryByMonthItem": {
             count?: number;
             expense?: number;
             income?: number;
             month?: string;
             net?: number;
         };
-        "github_com_mgurt_finances_internal_models.Transaction": {
+        "models.Transaction": {
             accountId?: string;
             amount?: number;
             categoryId?: string;
@@ -2168,7 +2212,7 @@ export interface components {
             transferAccountId?: string;
             updatedAt?: string;
         };
-        "github_com_mgurt_finances_internal_models.TransactionWithDetails": {
+        "models.TransactionWithDetails": {
             accountId?: string;
             accountName?: string;
             amount?: number;
@@ -2186,23 +2230,23 @@ export interface components {
             transferAccountName?: string;
             updatedAt?: string;
         };
-        "github_com_mgurt_finances_internal_models.UpdateAccountReq": {
+        "models.UpdateAccountReq": {
             color?: string;
             icon?: string;
             name?: string;
             type?: string;
         };
-        "github_com_mgurt_finances_internal_models.UpdateBudgetReq": {
+        "models.UpdateBudgetReq": {
             amountCents?: number;
         };
-        "github_com_mgurt_finances_internal_models.UpdateCategoryReq": {
+        "models.UpdateCategoryReq": {
             color?: string;
             icon?: string;
             kind?: string;
             name?: string;
             parentId?: string;
         };
-        "github_com_mgurt_finances_internal_models.UpdateTransactionReq": {
+        "models.UpdateTransactionReq": {
             amount?: number;
             categoryId?: string;
             date?: string;
@@ -2211,7 +2255,7 @@ export interface components {
             notes?: string;
             transferAccountId?: string;
         };
-        "github_com_mgurt_finances_internal_models.UpsertBudgetReq": {
+        "models.UpsertBudgetReq": {
             amountCents: number;
             categoryId?: string;
             month: string;
