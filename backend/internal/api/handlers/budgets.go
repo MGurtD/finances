@@ -2,11 +2,16 @@ package handlers
 
 import (
 	"net/http"
+	"regexp"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mgurt/finances/internal/apitypes"
 	"github.com/mgurt/finances/internal/models"
 )
+
+// monthRe enforces YYYY-MM with month in 01..12. Compiled once at package
+// load; the handler invokes it on every Upsert.
+var monthRe = regexp.MustCompile(`^(\d{4})-(0[1-9]|1[0-2])$`)
 
 // BudgetsHandler handles budget endpoints.
 type BudgetsHandler struct {
@@ -54,6 +59,14 @@ func (h *BudgetsHandler) Upsert(c *gin.Context) {
 	var req models.UpsertBudgetReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "invalid request"})
+		return
+	}
+
+	// Reject malformed month values up front. The DB row would otherwise
+	// store "2026-13" verbatim and only fail later inside Status()'s
+	// time.Parse, by which point the user has already lost the 400.
+	if !monthRe.MatchString(req.Month) {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "month must be YYYY-MM"})
 		return
 	}
 
@@ -139,4 +152,25 @@ func (h *BudgetsHandler) Status(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, status)
+}
+
+// Get godoc
+// @Summary      Get budget by ID
+// @Description  Retrieve a single budget by its ID
+// @Tags         budgets
+// @Produce      json
+// @Param        id  path  string  true  "budget ID"
+// @Success      200  {object}  models.Budget
+// @Failure      401  {object}  models.ErrorResponse
+// @Failure      404  {object}  models.ErrorResponse
+// @Router       /api/budgets/{id} [get]
+// @Security     cookieAuth
+func (h *BudgetsHandler) Get(c *gin.Context) {
+	id := c.Param("id")
+	budget, err := h.Server.Store.Budgets.ByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.ErrorResponse{Error: "budget not found"})
+		return
+	}
+	c.JSON(http.StatusOK, budget)
 }

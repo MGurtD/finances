@@ -75,21 +75,47 @@ func TestBudgets_Upsert_HTTP(t *testing.T) {
 		}
 	})
 
-	t.Run("invalid month format is silently accepted (production bug)", func(t *testing.T) {
-		// The SDD spec said Upsert should reject "2026-13" with 400.
-		// In production, the month is stored as-is and only validated
-		// later in Status() via time.Parse. The handler does not
-		// pre-validate. This test pins the current behavior; a future
-		// fix should flip both the production code and this test.
+	t.Run("invalid month format returns 400 with 'month must be YYYY-MM'", func(t *testing.T) {
+		// Spec criterion 3: Upsert rejects out-of-range month with a
+		// structured 400 instead of silently storing it.
 		s, _ := loginAsAdmin(t)
 		body := map[string]any{
 			"categoryId":  s.SeededCategoryID(t, "Habitatge"),
 			"month":       "2026-13",
 			"amountCents": 1000,
 		}
-		w := s.DoJSON(t, http.MethodPost, "/api/budgets", body, nil)
-		if w.Code != http.StatusOK {
-			t.Errorf("status = %d, want 200 (current production behavior; should be 400 after fix)", w.Code)
+		var resp models.ErrorResponse
+		w := s.DoJSON(t, http.MethodPost, "/api/budgets", body, &resp)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400 (body: %s)", w.Code, w.Body.String())
+		}
+		if resp.Error != "month must be YYYY-MM" {
+			t.Errorf("error = %q, want 'month must be YYYY-MM'", resp.Error)
+		}
+	})
+
+	t.Run("various invalid month formats are 400", func(t *testing.T) {
+		// Spec criterion 4: every malformed YYYY-MM token gets rejected
+		// with the same structured error.
+		tests := []string{"2026-00", "2026-1", "26-06", "2026/06"}
+		for _, month := range tests {
+			month := month
+			t.Run(month, func(t *testing.T) {
+				s, _ := loginAsAdmin(t)
+				body := map[string]any{
+					"categoryId":  s.SeededCategoryID(t, "Habitatge"),
+					"month":       month,
+					"amountCents": 1000,
+				}
+				var resp models.ErrorResponse
+				w := s.DoJSON(t, http.MethodPost, "/api/budgets", body, &resp)
+				if w.Code != http.StatusBadRequest {
+					t.Errorf("status = %d, want 400 (body: %s)", w.Code, w.Body.String())
+				}
+				if resp.Error != "month must be YYYY-MM" {
+					t.Errorf("error = %q, want 'month must be YYYY-MM'", resp.Error)
+				}
+			})
 		}
 	})
 
@@ -226,6 +252,65 @@ func TestBudgets_Update_HTTP(t *testing.T) {
 		s := testutil.NewServer(t)
 		w := s.DoJSON(t, http.MethodPut, "/api/budgets/any",
 			map[string]any{"amountCents": 1}, nil)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, want 401", w.Code)
+		}
+	})
+}
+
+// --- TestBudgets_Delete_HTTP ---------------------------------------------
+
+func TestBudgets_Get_HTTP(t *testing.T) {
+	t.Run("valid id returns 200 with the budget row", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		categoryID := s.SeededCategoryID(t, "Habitatge")
+
+		// Create the budget first so we have a real id to look up.
+		var created map[string]any
+		w := s.DoJSON(t, http.MethodPost, "/api/budgets", map[string]any{
+			"categoryId":  categoryID,
+			"month":       "2026-10",
+			"amountCents": 12345,
+		}, &created)
+		if w.Code != http.StatusOK {
+			t.Fatalf("upsert seed: %d %s", w.Code, w.Body.String())
+		}
+		id, _ := created["id"].(string)
+		if id == "" {
+			t.Fatal("created.id is empty")
+		}
+
+		var resp models.Budget
+		w = s.DoJSON(t, http.MethodGet, "/api/budgets/"+id, nil, &resp)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body: %s)", w.Code, w.Body.String())
+		}
+		if resp.ID != id {
+			t.Errorf("id = %q, want %q", resp.ID, id)
+		}
+		if resp.AmountCents != 12345 {
+			t.Errorf("amountCents = %d, want 12345", resp.AmountCents)
+		}
+		if resp.Month != "2026-10" {
+			t.Errorf("month = %q, want '2026-10'", resp.Month)
+		}
+	})
+
+	t.Run("unknown id returns 404 with 'budget not found'", func(t *testing.T) {
+		s, _ := loginAsAdmin(t)
+		var resp models.ErrorResponse
+		w := s.DoJSON(t, http.MethodGet, "/api/budgets/no-such-id", nil, &resp)
+		if w.Code != http.StatusNotFound {
+			t.Errorf("status = %d, want 404", w.Code)
+		}
+		if resp.Error != "budget not found" {
+			t.Errorf("error = %q, want 'budget not found'", resp.Error)
+		}
+	})
+
+	t.Run("returns 401 without auth cookie", func(t *testing.T) {
+		s := testutil.NewServer(t)
+		w := s.DoJSON(t, http.MethodGet, "/api/budgets/any-id", nil, nil)
 		if w.Code != http.StatusUnauthorized {
 			t.Errorf("status = %d, want 401", w.Code)
 		}

@@ -15,7 +15,7 @@ func TestCategories_List_HTTP(t *testing.T) {
 		s := testutil.NewServer(t, testutil.WithSeeded(false))
 		s.Cookie = s.Login(t)
 
-		var resp []map[string]any
+		var resp []models.Category
 		w := s.DoJSON(t, http.MethodGet, "/api/categories", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
@@ -28,7 +28,7 @@ func TestCategories_List_HTTP(t *testing.T) {
 	t.Run("seeded returns 200 with the default taxonomy", func(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 
-		var resp []map[string]any
+		var resp []models.Category
 		w := s.DoJSON(t, http.MethodGet, "/api/categories", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
@@ -47,14 +47,14 @@ func TestCategories_List_HTTP(t *testing.T) {
 			t.Fatalf("archive: %d", w.Code)
 		}
 
-		var resp []map[string]any
+		var resp []models.Category
 		w = s.DoJSON(t, http.MethodGet, "/api/categories", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
 		}
 		// Verify Habitatge is not in the response.
 		for _, c := range resp {
-			if name, _ := c["name"].(string); name == "Habitatge" {
+			if c.Name == "Habitatge" {
 				t.Error("archived category 'Habitatge' should be excluded")
 			}
 		}
@@ -75,7 +75,7 @@ func TestCategories_Tree_HTTP(t *testing.T) {
 	t.Run("no filter returns hierarchical nodes", func(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 
-		var resp []map[string]any
+		var resp []models.CategoryNode
 		w := s.DoJSON(t, http.MethodGet, "/api/categories/tree", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
@@ -87,9 +87,7 @@ func TestCategories_Tree_HTTP(t *testing.T) {
 		// (id 214) has a child 'Entre comptes propis' (id 218).
 		foundParentWithChild := false
 		for _, node := range resp {
-			name, _ := node["name"].(string)
-			children, _ := node["children"].([]any)
-			if name == "Transferències internes" && len(children) > 0 {
+			if node.Name == "Transferències internes" && len(node.Children) > 0 {
 				foundParentWithChild = true
 				break
 			}
@@ -102,15 +100,14 @@ func TestCategories_Tree_HTTP(t *testing.T) {
 	t.Run("?kind=expense returns only expense categories", func(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 
-		var resp []map[string]any
+		var resp []models.CategoryNode
 		w := s.DoJSON(t, http.MethodGet, "/api/categories/tree?kind=expense", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
 		}
 		for _, node := range resp {
-			kind, _ := node["kind"].(string)
-			if kind != "expense" {
-				t.Errorf("node.kind = %q, want expense (filter leaked)", kind)
+			if node.Kind != "expense" {
+				t.Errorf("node.kind = %q, want expense (filter leaked)", node.Kind)
 			}
 		}
 	})
@@ -118,7 +115,7 @@ func TestCategories_Tree_HTTP(t *testing.T) {
 	t.Run("?kind=income returns only income categories", func(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 
-		var resp []map[string]any
+		var resp []models.CategoryNode
 		w := s.DoJSON(t, http.MethodGet, "/api/categories/tree?kind=income", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
@@ -127,9 +124,8 @@ func TestCategories_Tree_HTTP(t *testing.T) {
 			t.Fatal("expected at least 1 income category in seed")
 		}
 		for _, node := range resp {
-			kind, _ := node["kind"].(string)
-			if kind != "income" {
-				t.Errorf("node.kind = %q, want income", kind)
+			if node.Kind != "income" {
+				t.Errorf("node.kind = %q, want income", node.Kind)
 			}
 		}
 	})
@@ -150,13 +146,13 @@ func TestCategories_ByID_HTTP(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 		id := s.SeededCategoryID(t, "Habitatge")
 
-		var resp map[string]any
+		var resp models.Category
 		w := s.DoJSON(t, http.MethodGet, "/api/categories/"+id, nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
 		}
-		if got, _ := resp["id"].(string); got != id {
-			t.Errorf("id = %q, want %q", got, id)
+		if resp.ID != id {
+			t.Errorf("id = %q, want %q", resp.ID, id)
 		}
 	})
 
@@ -193,15 +189,15 @@ func TestCategories_Create_HTTP(t *testing.T) {
 			"icon":  "tag",
 			"color": "#FF00FF",
 		}
-		var resp map[string]any
+		var resp models.Category
 		w := s.DoJSON(t, http.MethodPost, "/api/categories", body, &resp)
 		if w.Code != http.StatusCreated {
 			t.Fatalf("status = %d, want 201 (body: %s)", w.Code, w.Body.String())
 		}
-		if name, _ := resp["name"].(string); name != "Test New Category" {
-			t.Errorf("name = %q, want 'Test New Category'", name)
+		if resp.Name != "Test New Category" {
+			t.Errorf("name = %q, want 'Test New Category'", resp.Name)
 		}
-		if id, _ := resp["id"].(string); id == "" {
+		if resp.ID == "" {
 			t.Error("id is empty")
 		}
 	})
@@ -215,13 +211,16 @@ func TestCategories_Create_HTTP(t *testing.T) {
 			"kind":     "expense",
 			"parentId": parentID,
 		}
-		var resp map[string]any
+		var resp models.Category
 		w := s.DoJSON(t, http.MethodPost, "/api/categories", body, &resp)
 		if w.Code != http.StatusCreated {
 			t.Fatalf("status = %d, want 201 (body: %s)", w.Code, w.Body.String())
 		}
-		gotParent, _ := resp["parentId"].(string)
-		if gotParent != parentID {
+		if resp.ParentID == nil || *resp.ParentID != parentID {
+			var gotParent string
+			if resp.ParentID != nil {
+				gotParent = *resp.ParentID
+			}
 			t.Errorf("parentId = %q, want %q", gotParent, parentID)
 		}
 	})
@@ -256,13 +255,13 @@ func TestCategories_Update_HTTP(t *testing.T) {
 			"name": "Habitatge Renamed",
 			"kind": "expense",
 		}
-		var resp map[string]any
+		var resp models.Category
 		w := s.DoJSON(t, http.MethodPut, "/api/categories/"+id, body, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200 (body: %s)", w.Code, w.Body.String())
 		}
-		if name, _ := resp["name"].(string); name != "Habitatge Renamed" {
-			t.Errorf("name = %q, want 'Habitatge Renamed'", name)
+		if resp.Name != "Habitatge Renamed" {
+			t.Errorf("name = %q, want 'Habitatge Renamed'", resp.Name)
 		}
 	})
 
@@ -307,13 +306,14 @@ func TestCategories_Archive_HTTP(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 		id := s.SeededCategoryID(t, "Habitatge")
 
-		var resp map[string]any
+		var resp models.Category
 		w := s.DoJSON(t, http.MethodPatch, "/api/categories/"+id+"/archive", nil, &resp)
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200", w.Code)
 		}
-		if archived, ok := resp["archived"].(bool); !ok || !archived {
-			t.Errorf("archived = %v, want true", resp["archived"])
+		// models.BoolInt unmarshals JSON booleans into 0/1.
+		if resp.Archived == 0 {
+			t.Errorf("archived = %d, want 1 (true)", resp.Archived)
 		}
 	})
 
@@ -339,12 +339,15 @@ func TestCategories_Archive_HTTP(t *testing.T) {
 }
 
 // Note: CategoriesHandler has no Delete method, and routes.go does not
-// register DELETE /api/categories/:id. The SDD spec listed a
-// TestCategories_Delete_HTTP scenario, but adding it would require
-// production changes (new handler method + new route), which is out of
-// scope per the no-production-changes rule for this change. The actual
-// handler has 6 methods (List, Tree, ByID, Create, Update, Archive,
-// Reorder) — all covered above and in the Reorder test below.
+// register DELETE /api/categories/:id. The criterion from the
+// improve-api-testing spec is explicitly OUT-OF-SCOPE-BY-DECISION for
+// fix-api-production-bugs (see proposal s3). Rationale: categories are
+// referenced by transactions.category_id and budgets.category_id (FK
+// NO ACTION); a hard delete with referenced data fails. The existing
+// Archive (PATCH /api/categories/:id/archive) covers the soft-delete
+// use case. The handler has 6 methods (List, Tree, ByID, Create,
+// Update, Archive, Reorder) — all covered above and in the Reorder test
+// below.
 
 // --- TestCategories_Reorder_HTTP ------------------------------------------
 
@@ -366,21 +369,19 @@ func TestCategories_Reorder_HTTP(t *testing.T) {
 		}
 
 		// Verify the new order in a subsequent list call.
-		var list []map[string]any
+		var list []models.Category
 		w = s.DoJSON(t, http.MethodGet, "/api/categories", nil, &list)
 		if w.Code != http.StatusOK {
 			t.Fatalf("list after reorder: %d", w.Code)
 		}
 		// The reordered categories should now appear with the new sortOrder.
-		var id2Order, id1Order float64 = -1, -1
+		var id2Order, id1Order = -1, -1
 		for _, c := range list {
-			id, _ := c["id"].(string)
-			order, _ := c["sortOrder"].(float64)
-			if id == id2 {
-				id2Order = order
+			if c.ID == id2 {
+				id2Order = c.SortOrder
 			}
-			if id == id1 {
-				id1Order = order
+			if c.ID == id1 {
+				id1Order = c.SortOrder
 			}
 		}
 		if id2Order == -1 || id1Order == -1 {
@@ -395,7 +396,7 @@ func TestCategories_Reorder_HTTP(t *testing.T) {
 		s, _ := loginAsAdmin(t)
 		w := s.DoJSON(t, http.MethodPost, "/api/categories/reorder", map[string]any{}, nil)
 		if w.Code != http.StatusBadRequest {
-			t.Errorf("status = %d, want 400 (body: %s)", w.Code, w.Body.String())
+			t.Errorf("status = %d, want 400", w.Code)
 		}
 	})
 
