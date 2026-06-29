@@ -7,7 +7,7 @@ import {
   autoCategorizeId,
   type Categorisation,
 } from '@/utils/autoCategorize';
-import { MERCHANT_DICTIONARY } from '@/utils/autoCategorize/merchants';
+import { MERCHANT_DICTIONARY, MERCHANT_TOKENS_SORTED } from '@/utils/autoCategorize/merchants';
 import {
   __setStorageForTesting,
   clearAllLearnedRules,
@@ -478,6 +478,80 @@ describe('dictionary sanity', () => {
     for (const entry of MERCHANT_DICTIONARY) {
       expect(seedCategories).toContain(entry.categoryName);
     }
+  });
+});
+
+// ─── cat Req 1 — Loans / debts (BANCO CETELEM, AMORTIZACION DEUDA) ─────
+
+describe('loans / debts (BANCO CETELEM, AMORTIZACION DEUDA)', () => {
+  it('BANCO CETELEM, S.A. → candidate weight ≥ 0.6 for loans/debts', () => {
+    const r = cat_('BANCO CETELEM, S.A.', -44634);
+    expect(
+      r.candidates.some(
+        (c) =>
+          (c.name === 'Impostos i finances' || c.name === 'Préstecs / deutes') &&
+          c.score >= 0.6,
+      ),
+    ).toBe(true);
+  });
+
+  it('AMORTIZACION DEUDA 44070-0300 → Impostos i finances wins', () => {
+    const r = cat_('AMORTIZACION DEUDA 44070-0300', -666);
+    expect(r.categoryId).toBe('cat-impostos');
+  });
+
+  it("merchant token `cetelem` is reachable in the merchant dictionary", () => {
+    const hit = MERCHANT_TOKENS_SORTED.find((t) => t.token === 'cetelem');
+    expect(hit).toBeDefined();
+    expect(['Impostos i finances', 'Préstecs / deutes']).toContain(
+      hit!.entry.categoryName,
+    );
+  });
+});
+
+// ─── cat Req 3 — Digital subscriptions (asterisk variants) ─────────────
+
+describe('digital subscriptions (asterisk variants)', () => {
+  it('GOOGLE*YOUTUBE IRELAND 010074479 → Subscripcions, NOT Restaurants i oci', () => {
+    const r = cat_('GOOGLE*YOUTUBE IRELAND 010074479', -1399);
+    expect(r.categoryId).toBe('cat-subscripcions');
+    expect(r.confidence).toMatch(/medium|high/);
+  });
+
+  it('SPOTIFY*PREMIUM BARCELONA → Subscripcions', () => {
+    const r = cat_('SPOTIFY*PREMIUM BARCELONA', -999);
+    expect(r.categoryId).toBe('cat-subscripcions');
+  });
+
+  it('regression: NETFLIX.COM still routes to Subscripcions', () => {
+    const r = cat_('NETFLIX.COM 866-579-7172', -1399);
+    expect(r.categoryId).toBe('cat-subscripcions');
+  });
+
+  it('regression: JUST EAT BARCELONA still wins Restaurants i oci (does not over-match)', () => {
+    const r = cat_('JUST EAT BARCELONA', -1850);
+    expect(r.categoryId).toBe('cat-restaurants');
+  });
+});
+
+// ─── cat Req 7 — Peluquería / barbershop (Salut) ───────────────────────
+
+describe('barbershop / hairdresser (Salut)', () => {
+  it('BREYKER BARBER STUDIO → Salut, confidence medium+', () => {
+    const r = cat_('BREYKER BARBER STUDIO', -1500);
+    expect(r.categoryId).toBe('cat-salut');
+    expect(r.confidence).toMatch(/medium|high/);
+  });
+
+  it('PERRUQUERIA MARTA BARCELONA → Salut', () => {
+    const r = cat_('PERRUQUERIA MARTA BARCELONA', -2200);
+    expect(r.categoryId).toBe('cat-salut');
+  });
+
+  it("BAR MIRADOR D'ESPLUGUES DE → Restaurants i oci (NOT Salut) — regression guard", () => {
+    const r = cat_("BAR MIRADOR D'ESPLUGUES DE", -460);
+    expect(r.categoryId).toBe('cat-restaurants');
+    expect(r.categoryId).not.toBe('cat-salut');
   });
 });
 

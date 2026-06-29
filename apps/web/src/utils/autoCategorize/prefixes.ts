@@ -212,6 +212,43 @@ export const PREFIX_RULES: readonly PrefixRule[] = [
     detail: 'Operació bancària / comissió / amortització',
   },
 
+  // ───── Impostos i finances (cat Req 1 — loans/debts) ─────
+  {
+    pattern: '^banco cetelem\\b',
+    categoryName: 'Impostos i finances',
+    weight: 0.78,
+    detail: 'Préstec Cetelem',
+  },
+  {
+    // more-specific than the existing `^amortizacion` rule; both fire and
+    // OR-aggregate so the score climbs without regressing single-token cases.
+    pattern: '^amortizacion\\s+deuda\\b',
+    categoryName: 'Impostos i finances',
+    weight: 0.78,
+    detail: 'Amortització de deute (més específic que ^amortizacion)',
+  },
+
+  // ───── Subscripcions (cat Req 3 — asterisk-bearing digital subs) ─────
+  {
+    pattern:
+      '^google\\*youtube|^google\\*|^youtube\\*|^spotify\\*|^netflix\\*|^hbo\\*',
+    categoryName: 'Subscripcions',
+    weight: 0.85,
+    detail: 'Subscripció digital amb asterisc bancari',
+  },
+
+  // ───── Salut (cat Req 7 — barbershop / hairdresser) ─────
+  {
+    // Anchored multi-alternation so `BAR MIRADOR` (existing Restaurants i
+    // oci rule) doesn't over-match. Weight 0.9 beats the `breyker`
+    // Compres merchant token (~0.87) for `BREYKER BARBER STUDIO`.
+    pattern:
+      '^breyker\\s+barber|^barbershop|^perruqueria|^peluqueria|^barberia',
+    categoryName: 'Salut',
+    weight: 0.9,
+    detail: 'Peluqueria / barberia',
+  },
+
   // ───── Compres: ecommerce, moda, bazars, kebabs ───
   {
     pattern: '^amazon|^amzn|^shein|^aliexpress|^temu|^ebay|^wallapop|^milanuncios',
@@ -232,7 +269,8 @@ export const PREFIX_RULES: readonly PrefixRule[] = [
     detail: 'Botiga d\'electrodomèstics / bricolage / electrònica',
   },
   {
-    pattern: '^kaos urbano|^breyker|^konig|^audrey|^kireta|^gran bazar|^bazar miami|^progeser|^progese|^beat mag',
+    pattern:
+      '^kaos urbano|^konig|^audrey|^kireta|^gran bazar|^bazar miami|^progeser|^progese|^beat mag',
     categoryName: 'Compres',
     weight: 0.7,
     detail: 'Botiga / marca local',
