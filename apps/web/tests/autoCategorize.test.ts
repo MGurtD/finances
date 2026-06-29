@@ -24,6 +24,9 @@ import {
   removeUserToken,
   saveUserDictionary,
 } from '@/utils/autoCategorize/dictionary.user';
+import { tokenise } from '@/utils/autoCategorize/normalize';
+import { preprocess } from '@/utils/autoCategorize/preprocess';
+import { frequencyStrategy, type StrategyScore } from '@/utils/autoCategorize/strategies';
 import type { Category } from '@/api/types';
 
 // In-memory localStorage shim for tests.
@@ -552,6 +555,114 @@ describe('barbershop / hairdresser (Salut)', () => {
     const r = cat_("BAR MIRADOR D'ESPLUGUES DE", -460);
     expect(r.categoryId).toBe('cat-restaurants');
     expect(r.categoryId).not.toBe('cat-salut');
+  });
+});
+
+// ─── cat Req 4 — Frequency strategy threshold & dominance ─────────────
+
+describe('frequency strategy — threshold & dominance', () => {
+  const CATS_FOR_FREQ: Category[] = [
+    cat('cat-compres', 'Compres'),
+    cat('cat-restaurants', 'Restaurants i oci'),
+    cat('cat-salut', 'Salut'),
+  ];
+
+  it('PROGESA VIRTUAL with 5 same-category recents → emits StrategyScore', () => {
+    const pre = preprocess('PROGESA VIRTUAL');
+    const ctx = {
+      description: 'PROGESA VIRTUAL',
+      amountCents: -1200,
+      kind: 'expense' as const,
+      categories: CATS_FOR_FREQ,
+      recentSameDescription: Array(5).fill({
+        date: '2026-05-01',
+        categoryId: 'cat-compres',
+      }),
+    };
+    const scores: StrategyScore[] = frequencyStrategy(ctx, pre);
+    const hit = scores.find(
+      (s) => s.categoryId === 'cat-compres' && s.reason.strategy === 'frequency',
+    );
+    expect(hit).toBeDefined();
+    expect(hit!.weight).toBeGreaterThan(0);
+  });
+
+  it('only 2 recents → empty array (early-return threshold preserved)', () => {
+    const pre = preprocess('PROGESA VIRTUAL');
+    const ctx = {
+      description: 'PROGESA VIRTUAL',
+      amountCents: -1200,
+      kind: 'expense' as const,
+      categories: CATS_FOR_FREQ,
+      recentSameDescription: [
+        { date: '2026-05-01', categoryId: 'cat-compres' },
+        { date: '2026-04-15', categoryId: 'cat-compres' },
+      ],
+    };
+    expect(frequencyStrategy(ctx, pre)).toEqual([]);
+  });
+
+  it('5 recents split 3-to-2 → no score for either category (dominance threshold)', () => {
+    const pre = preprocess('PROGESA VIRTUAL');
+    const ctx = {
+      description: 'PROGESA VIRTUAL',
+      amountCents: -1200,
+      kind: 'expense' as const,
+      categories: CATS_FOR_FREQ,
+      recentSameDescription: [
+        { date: '2026-05-01', categoryId: 'cat-compres' },
+        { date: '2026-04-15', categoryId: 'cat-compres' },
+        { date: '2026-04-01', categoryId: 'cat-compres' },
+        { date: '2026-03-15', categoryId: 'cat-restaurants' },
+        { date: '2026-03-01', categoryId: 'cat-restaurants' },
+      ],
+    };
+    const scores = frequencyStrategy(ctx, pre);
+    // Neither 3 nor 2 reaches the new threshold; no frequency score should emit.
+    expect(scores.find((s) => s.categoryId === 'cat-compres')).toBeUndefined();
+    expect(scores.find((s) => s.categoryId === 'cat-restaurants')).toBeUndefined();
+  });
+});
+
+// ─── cat Req 5 — tokenise tolerates dirty Amazon descriptions ──────────
+
+describe('tokenise tolerates dirty Amazon descriptions', () => {
+  it('tokenise("WWW.AMAZON* NH5OV6C14 LUXEMBOURG") contains "amazon"', () => {
+    const toks = tokenise('WWW.AMAZON* NH5OV6C14 LUXEMBOURG');
+    expect(toks).toContain('amazon');
+  });
+
+  it('does NOT contain "nh5ov6c14" and does NOT contain "www"', () => {
+    const toks = tokenise('WWW.AMAZON* NH5OV6C14 LUXEMBOURG');
+    expect(toks).not.toContain('nh5ov6c14');
+    expect(toks).not.toContain('www');
+  });
+
+  it('full pipeline on the Amazon row → Compres wins (regression guard)', () => {
+    const r = cat_('WWW.AMAZON* NH5OV6C14 LUXEMBOURG', -2999);
+    expect(r.categoryId).toBe('cat-compres');
+  });
+});
+
+// ─── cat Req 6 — Investment fund name tokens (Indexa) ───────────────────
+
+describe('investment fund name tokens (Indexa)', () => {
+  it('Vanguard fund description → Inversions candidate', () => {
+    const r = cat_(
+      'Vanguard Global Stk Idx Eur -Ins Plus — REEMBOLSO POR TRASPASO',
+      -100000,
+    );
+    expect(
+      r.candidates.some((c) => c.name === 'Inversions'),
+    ).toBe(true);
+  });
+
+  it('all 5 tokens (vanguard, ishares, amundi, eurizon, dws) map to Inversions', () => {
+    for (const tok of ['vanguard', 'ishares', 'amundi', 'eurizon', 'dws']) {
+      const hit = MERCHANT_TOKENS_SORTED.find((t) => t.token === tok);
+      expect(hit, `merchant token "${tok}" missing`).toBeDefined();
+      expect(hit!.entry.categoryName).toBe('Inversions');
+    }
   });
 });
 

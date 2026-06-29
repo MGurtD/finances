@@ -478,8 +478,11 @@ export function frequencyStrategy(
   void pre;
   if (!ctx.recentSameDescription || ctx.recentSameDescription.length < 2) return [];
 
-  // Aggregate by categoryId. If 3+ of the last 5 rows for this description
+  // Aggregate by categoryId. If 4+ of the recents for this description
   // went to the same category, suggest it as recurring.
+  // Threshold raised from 3→4 per cat Req 4: 5 entries split 3-to-2
+  // must emit no score (spec), and 4+ matches is a stronger dominance
+  // signal than the previous 3+ threshold.
   const tally: Record<string, number> = {};
   for (const r of ctx.recentSameDescription) {
     tally[r.categoryId] = (tally[r.categoryId] ?? 0) + 1;
@@ -487,7 +490,7 @@ export function frequencyStrategy(
 
   const results: StrategyScore[] = [];
   for (const [categoryId, count] of Object.entries(tally)) {
-    if (count < 3) continue;
+    if (count < 4) continue;
     const cat = ctx.categories.find((c) => c.id === categoryId && !c.archived);
     if (!cat) continue;
     // High confidence: the user has consistently categorised this as X.

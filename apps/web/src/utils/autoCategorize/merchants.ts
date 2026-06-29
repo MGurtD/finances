@@ -312,6 +312,8 @@ export const MERCHANT_DICTIONARY: readonly MerchantEntry[] = [
       'inversio', 'inversion', 'estalvi', 'compra accions',
       'compra fons', 'broker', 'interactive brokers', 'degiro',
       'etoro', 'binance', 'coinbase',
+      // ── new for Indexa fund families (auto-categorization-rules Req 6)
+      'vanguard', 'ishares', 'amundi', 'eurizon', 'dws',
     ],
   },
 

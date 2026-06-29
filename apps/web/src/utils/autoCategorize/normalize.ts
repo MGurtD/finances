@@ -32,10 +32,24 @@ export function normaliseText(input: string): string {
 }
 
 /**
+ * Tokens we drop from the tokenise() output specifically — things that
+ * are noise inside bank descriptions but would be over-reaching if added
+ * to the global STOPWORDS list (which `preprocess.ts` shares with the
+ * merchant-dictionary fuzzy matcher).
+ *
+ * `www` is the canonical example: `WWW.AMAZON* NH5OV6C14 LUXEMBOURG`
+ * would otherwise emit `www` as a standalone token. It is intentionally
+ * a separate Set from STOPWORDS so a future change to STOPWORDS won't
+ * silently affect tokenise's behaviour.
+ */
+const TOKENISE_STOPWORDS = new Set(['www']);
+
+/**
  * Tokenise a description. Splits on any non-alphanumeric, drops:
  *   - tokens shorter than 3 chars
  *   - pure-digit tokens (transaction IDs, postal codes)
  *   - mixed-digit-letter tokens that look like codes (e.g. ES2604021120)
+ *   - tokenise-only stopwords (currently just `www`) — see spec cat Req 5
  *
  * @returns ordered array of cleaned tokens
  */
@@ -46,7 +60,8 @@ export function tokenise(input: string): string[] {
     .split(/[^a-z0-9]+/)
     .filter((tok) => tok.length >= 3)
     .filter((tok) => !/^\d+$/.test(tok))
-    .filter((tok) => !/^[a-z]{1,3}\d+/i.test(tok)); // e.g. "es26..."
+    .filter((tok) => !/^[a-z]{1,3}\d+/i.test(tok)) // e.g. "es26..."
+    .filter((tok) => !TOKENISE_STOPWORDS.has(tok));
 }
 
 /**
