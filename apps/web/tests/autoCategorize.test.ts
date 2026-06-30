@@ -215,6 +215,33 @@ describe('preprocessing strips bank noise', () => {
   });
 });
 
+// ─── supermercat / alimentacion prefix (Alimentació accent match) ─────
+
+describe('supermercat / alimentacion prefix — accent match', () => {
+  it('SUPERMERCAT ALIMENTACION BARCELONA 36782 → Alimentació (real Abanca row)', () => {
+    const r = autoCategorizeId(
+      'SUPERMERCAT ALIMENTACION BARCELONA 36782',
+      CATS,
+      'expense',
+    );
+    expect(r).toBe('cat-alimentacio');
+  });
+
+  it('ALI SUPER PREU TORELLO 369089545 → Alimentació (real Abanca row)', () => {
+    const r = autoCategorizeId(
+      'ALI SUPER PREU TORELLO 369089545',
+      CATS,
+      'expense',
+    );
+    expect(r).toBe('cat-alimentacio');
+  });
+
+  it('regression: PRIMAPRIX still wins Alimentació via merchant dict', () => {
+    const r = cat_('PRIMAPRIX A192 MADRID ES2604021120');
+    expect(r.categoryId).toBe('cat-alimentacio');
+  });
+});
+
 // ─── IBAN detection (Layer 5) ───────────────────────────────────────
 
 describe('IBAN detection for internal transfers', () => {
