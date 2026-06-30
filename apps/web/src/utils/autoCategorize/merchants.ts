@@ -174,6 +174,12 @@ export const MERCHANT_DICTIONARY: readonly MerchantEntry[] = [
       'fisioterapia', 'fisio', 'psicologo', 'psicòleg',
       'oculista', 'optica', 'optometrista',
       'sanitas', 'adeslas', 'dkv', 'asisa', 'mutua',
+      // cat Req 7 — barbershop tokens. The prefix rule
+      // `^breyker\s+barber|^barbershop|^perruqueria|^peluqueria|^barberia`
+      // covers the anchored cases; these merchant tokens provide a
+      // noisy-OR second contribution when `barber` appears anywhere
+      // (e.g. "BREYKER BARBER STUDIO" / "EL BARBER DE SANT JUST").
+      'barber', 'barbershop', 'perruqueria', 'peluqueria', 'barberia',
     ],
   },
 
@@ -306,6 +312,8 @@ export const MERCHANT_DICTIONARY: readonly MerchantEntry[] = [
       'inversio', 'inversion', 'estalvi', 'compra accions',
       'compra fons', 'broker', 'interactive brokers', 'degiro',
       'etoro', 'binance', 'coinbase',
+      // ── new for Indexa fund families (auto-categorization-rules Req 6)
+      'vanguard', 'ishares', 'amundi', 'eurizon', 'dws',
     ],
   },
 

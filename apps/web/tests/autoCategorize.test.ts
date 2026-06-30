@@ -7,7 +7,7 @@ import {
   autoCategorizeId,
   type Categorisation,
 } from '@/utils/autoCategorize';
-import { MERCHANT_DICTIONARY } from '@/utils/autoCategorize/merchants';
+import { MERCHANT_DICTIONARY, MERCHANT_TOKENS_SORTED } from '@/utils/autoCategorize/merchants';
 import {
   __setStorageForTesting,
   clearAllLearnedRules,
@@ -24,6 +24,9 @@ import {
   removeUserToken,
   saveUserDictionary,
 } from '@/utils/autoCategorize/dictionary.user';
+import { tokenise } from '@/utils/autoCategorize/normalize';
+import { preprocess } from '@/utils/autoCategorize/preprocess';
+import { frequencyStrategy, type StrategyScore } from '@/utils/autoCategorize/strategies';
 import type { Category } from '@/api/types';
 
 // In-memory localStorage shim for tests.
@@ -208,6 +211,33 @@ describe('preprocessing strips bank noise', () => {
   it('skips stopwords (city names) when extracting tokens', () => {
     // "ESPLUGUES DE" is stopword material; "LIDL" should still match.
     const r = cat_('LIDL ESPLUGUES DE LLOBREGAT 9999');
+    expect(r.categoryId).toBe('cat-alimentacio');
+  });
+});
+
+// ─── supermercat / alimentacion prefix (Alimentació accent match) ─────
+
+describe('supermercat / alimentacion prefix — accent match', () => {
+  it('SUPERMERCAT ALIMENTACION BARCELONA 36782 → Alimentació (real Abanca row)', () => {
+    const r = autoCategorizeId(
+      'SUPERMERCAT ALIMENTACION BARCELONA 36782',
+      CATS,
+      'expense',
+    );
+    expect(r).toBe('cat-alimentacio');
+  });
+
+  it('ALI SUPER PREU TORELLO 369089545 → Alimentació (real Abanca row)', () => {
+    const r = autoCategorizeId(
+      'ALI SUPER PREU TORELLO 369089545',
+      CATS,
+      'expense',
+    );
+    expect(r).toBe('cat-alimentacio');
+  });
+
+  it('regression: PRIMAPRIX still wins Alimentació via merchant dict', () => {
+    const r = cat_('PRIMAPRIX A192 MADRID ES2604021120');
     expect(r.categoryId).toBe('cat-alimentacio');
   });
 });
@@ -477,6 +507,208 @@ describe('dictionary sanity', () => {
     ];
     for (const entry of MERCHANT_DICTIONARY) {
       expect(seedCategories).toContain(entry.categoryName);
+    }
+  });
+});
+
+// ─── cat Req 1 — Loans / debts (BANCO CETELEM, AMORTIZACION DEUDA) ─────
+
+describe('loans / debts (BANCO CETELEM, AMORTIZACION DEUDA)', () => {
+  it('BANCO CETELEM, S.A. → candidate weight ≥ 0.6 for loans/debts', () => {
+    const r = cat_('BANCO CETELEM, S.A.', -44634);
+    expect(
+      r.candidates.some(
+        (c) =>
+          (c.name === 'Impostos i finances' || c.name === 'Préstecs / deutes') &&
+          c.score >= 0.6,
+      ),
+    ).toBe(true);
+  });
+
+  it('AMORTIZACION DEUDA 44070-0300 → Impostos i finances wins', () => {
+    const r = cat_('AMORTIZACION DEUDA 44070-0300', -666);
+    expect(r.categoryId).toBe('cat-impostos');
+  });
+
+  it("merchant token `cetelem` is reachable in the merchant dictionary", () => {
+    const hit = MERCHANT_TOKENS_SORTED.find((t) => t.token === 'cetelem');
+    expect(hit).toBeDefined();
+    expect(['Impostos i finances', 'Préstecs / deutes']).toContain(
+      hit!.entry.categoryName,
+    );
+  });
+});
+
+// ─── cat Req 2 — Charter / school (Família) ────────────────────────────
+
+describe('charter / school (Família)', () => {
+  it('CHARTER EDUARD TOLDRA ESPLUGUES DE 34610 → Família', () => {
+    expect(
+      autoCategorizeId(
+        'CHARTER EDUARD TOLDRA ESPLUGUES DE 34610',
+        CATS,
+        'expense',
+      ),
+    ).toBe('cat-familia');
+  });
+
+  it('merchant token `charter` exists in the dictionary pointing to Família', () => {
+    const tok = MERCHANT_TOKENS_SORTED.find((t) => t.token === 'charter');
+    expect(tok).toBeDefined();
+    expect(tok!.entry.categoryName).toBe('Família');
+  });
+});
+
+// ─── cat Req 3 — Digital subscriptions (asterisk variants) ─────────────
+
+describe('digital subscriptions (asterisk variants)', () => {
+  it('GOOGLE*YOUTUBE IRELAND 010074479 → Subscripcions, NOT Restaurants i oci', () => {
+    const r = cat_('GOOGLE*YOUTUBE IRELAND 010074479', -1399);
+    expect(r.categoryId).toBe('cat-subscripcions');
+    expect(r.confidence).toMatch(/medium|high/);
+  });
+
+  it('SPOTIFY*PREMIUM BARCELONA → Subscripcions', () => {
+    const r = cat_('SPOTIFY*PREMIUM BARCELONA', -999);
+    expect(r.categoryId).toBe('cat-subscripcions');
+  });
+
+  it('regression: NETFLIX.COM still routes to Subscripcions', () => {
+    const r = cat_('NETFLIX.COM 866-579-7172', -1399);
+    expect(r.categoryId).toBe('cat-subscripcions');
+  });
+
+  it('regression: JUST EAT BARCELONA still wins Restaurants i oci (does not over-match)', () => {
+    const r = cat_('JUST EAT BARCELONA', -1850);
+    expect(r.categoryId).toBe('cat-restaurants');
+  });
+});
+
+// ─── cat Req 7 — Peluquería / barbershop (Salut) ───────────────────────
+
+describe('barbershop / hairdresser (Salut)', () => {
+  it('BREYKER BARBER STUDIO → Salut, confidence medium+', () => {
+    const r = cat_('BREYKER BARBER STUDIO', -1500);
+    expect(r.categoryId).toBe('cat-salut');
+    expect(r.confidence).toMatch(/medium|high/);
+  });
+
+  it('PERRUQUERIA MARTA BARCELONA → Salut', () => {
+    const r = cat_('PERRUQUERIA MARTA BARCELONA', -2200);
+    expect(r.categoryId).toBe('cat-salut');
+  });
+
+  it("BAR MIRADOR D'ESPLUGUES DE → Restaurants i oci (NOT Salut) — regression guard", () => {
+    const r = cat_("BAR MIRADOR D'ESPLUGUES DE", -460);
+    expect(r.categoryId).toBe('cat-restaurants');
+    expect(r.categoryId).not.toBe('cat-salut');
+  });
+});
+
+// ─── cat Req 4 — Frequency strategy threshold & dominance ─────────────
+
+describe('frequency strategy — threshold & dominance', () => {
+  const CATS_FOR_FREQ: Category[] = [
+    cat('cat-compres', 'Compres'),
+    cat('cat-restaurants', 'Restaurants i oci'),
+    cat('cat-salut', 'Salut'),
+  ];
+
+  it('PROGESA VIRTUAL with 5 same-category recents → emits StrategyScore', () => {
+    const pre = preprocess('PROGESA VIRTUAL');
+    const ctx = {
+      description: 'PROGESA VIRTUAL',
+      amountCents: -1200,
+      kind: 'expense' as const,
+      categories: CATS_FOR_FREQ,
+      recentSameDescription: Array(5).fill({
+        date: '2026-05-01',
+        categoryId: 'cat-compres',
+      }),
+    };
+    const scores: StrategyScore[] = frequencyStrategy(ctx, pre);
+    const hit = scores.find(
+      (s) => s.categoryId === 'cat-compres' && s.reason.strategy === 'frequency',
+    );
+    expect(hit).toBeDefined();
+    expect(hit!.weight).toBeGreaterThan(0);
+  });
+
+  it('only 2 recents → empty array (early-return threshold preserved)', () => {
+    const pre = preprocess('PROGESA VIRTUAL');
+    const ctx = {
+      description: 'PROGESA VIRTUAL',
+      amountCents: -1200,
+      kind: 'expense' as const,
+      categories: CATS_FOR_FREQ,
+      recentSameDescription: [
+        { date: '2026-05-01', categoryId: 'cat-compres' },
+        { date: '2026-04-15', categoryId: 'cat-compres' },
+      ],
+    };
+    expect(frequencyStrategy(ctx, pre)).toEqual([]);
+  });
+
+  it('5 recents split 3-to-2 → no score for either category (dominance threshold)', () => {
+    const pre = preprocess('PROGESA VIRTUAL');
+    const ctx = {
+      description: 'PROGESA VIRTUAL',
+      amountCents: -1200,
+      kind: 'expense' as const,
+      categories: CATS_FOR_FREQ,
+      recentSameDescription: [
+        { date: '2026-05-01', categoryId: 'cat-compres' },
+        { date: '2026-04-15', categoryId: 'cat-compres' },
+        { date: '2026-04-01', categoryId: 'cat-compres' },
+        { date: '2026-03-15', categoryId: 'cat-restaurants' },
+        { date: '2026-03-01', categoryId: 'cat-restaurants' },
+      ],
+    };
+    const scores = frequencyStrategy(ctx, pre);
+    // Neither 3 nor 2 reaches the new threshold; no frequency score should emit.
+    expect(scores.find((s) => s.categoryId === 'cat-compres')).toBeUndefined();
+    expect(scores.find((s) => s.categoryId === 'cat-restaurants')).toBeUndefined();
+  });
+});
+
+// ─── cat Req 5 — tokenise tolerates dirty Amazon descriptions ──────────
+
+describe('tokenise tolerates dirty Amazon descriptions', () => {
+  it('tokenise("WWW.AMAZON* NH5OV6C14 LUXEMBOURG") contains "amazon"', () => {
+    const toks = tokenise('WWW.AMAZON* NH5OV6C14 LUXEMBOURG');
+    expect(toks).toContain('amazon');
+  });
+
+  it('does NOT contain "nh5ov6c14" and does NOT contain "www"', () => {
+    const toks = tokenise('WWW.AMAZON* NH5OV6C14 LUXEMBOURG');
+    expect(toks).not.toContain('nh5ov6c14');
+    expect(toks).not.toContain('www');
+  });
+
+  it('full pipeline on the Amazon row → Compres wins (regression guard)', () => {
+    const r = cat_('WWW.AMAZON* NH5OV6C14 LUXEMBOURG', -2999);
+    expect(r.categoryId).toBe('cat-compres');
+  });
+});
+
+// ─── cat Req 6 — Investment fund name tokens (Indexa) ───────────────────
+
+describe('investment fund name tokens (Indexa)', () => {
+  it('Vanguard fund description → Inversions candidate', () => {
+    const r = cat_(
+      'Vanguard Global Stk Idx Eur -Ins Plus — REEMBOLSO POR TRASPASO',
+      -100000,
+    );
+    expect(
+      r.candidates.some((c) => c.name === 'Inversions'),
+    ).toBe(true);
+  });
+
+  it('all 5 tokens (vanguard, ishares, amundi, eurizon, dws) map to Inversions', () => {
+    for (const tok of ['vanguard', 'ishares', 'amundi', 'eurizon', 'dws']) {
+      const hit = MERCHANT_TOKENS_SORTED.find((t) => t.token === tok);
+      expect(hit, `merchant token "${tok}" missing`).toBeDefined();
+      expect(hit!.entry.categoryName).toBe('Inversions');
     }
   });
 });
